@@ -9,3 +9,19 @@ class GameUI:
         self.window.geometry("800x600")  # window size
         self.image_file = None
         self.difficulty = tk.StringVar(value="Medium")
+ # background color 
+        self.window.configure(bg="#ADD8E6")
+        
+        # main frame
+        self.frame = tk.Frame(self.window, bg="#ADD8E6")
+        self.frame.pack(expand=True, fill="both")
+        
+        # add a background image
+        try:
+            bg_img = Image.open("jungle_bg.jpg")  
+            bg_img = bg_img.resize((800, 600), Image.Resampling.LANCZOS)
+            self.bg_photo = ImageTk.PhotoImage(bg_img)
+            self.bg_label = tk.Label(self.frame, image=self.bg_photo)
+            self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+        except:
+            self.frame.configure(bg="#ADD8E6")
