@@ -12,3 +12,6 @@ He goes to class.
 
 im changing this story
 because i need friends
+ok now i made a branch im gonna push to origin.
+im gonna merge this to main using pull request.
+
