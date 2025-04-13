@@ -41,7 +41,7 @@ class GameUI:
             if thing != self.bg_label:  
                 thing.destroy()
 
-# title frame 
+        # title frame 
         title_frame = tk.Frame(self.frame, bg="#ADD8E6")
         title_frame.pack(pady=30)
         
@@ -52,3 +52,22 @@ class GameUI:
         # welcome message
         welcome = tk.Label(title_frame, text="Can you find the sneaky chameleon?", font=("Arial", 14, "italic"), fg="#008000", bg="#ADD8E6")
         welcome.pack(pady=5)
+
+        # placeholder
+        chameleon_icon = tk.Label(title_frame, text="🦎", font=("Arial", 30), fg="#008000", bg="#ADD8E6")
+        chameleon_icon.pack(pady=10)
+        
+        # upload button
+        upload_btn = tk.Button(
+            self.frame, 
+            text="Upload Image", 
+            command=self.upload_pic, 
+            bg="#FFFF00",  
+            fg="black", 
+            font=("Arial", 18, "bold"),
+            relief="raised"
+        )
+        upload_btn.pack(pady=15, ipadx=30, ipady=15)  
+        
+        upload_btn.bind("<Enter>", lambda e: self.animate_button(upload_btn, "#FFD700"))
+        upload_btn.bind("<Leave>", lambda e: self.animate_button(upload_btn, "#FFFF00", shrink=True))
