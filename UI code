@@ -1,12 +1,12 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from PIL import Image, ImageTk  # for images
+from PIL import Image, ImageTk  
 
 class GameUI:
     def __init__(self, window):
         self.window = window
         self.window.title("Chameleon Hunt")
-        self.window.geometry("800x600")  # window size
+        self.window.geometry("800x600") 
         self.image_file = None
         self.difficulty = tk.StringVar(value="Medium")
  # background color 
@@ -16,7 +16,7 @@ class GameUI:
         self.frame = tk.Frame(self.window, bg="#ADD8E6")
         self.frame.pack(expand=True, fill="both")
         
-        # add a background image
+        # background image
         try:
             bg_img = Image.open("jungle_bg.jpg")  
             bg_img = bg_img.resize((800, 600), Image.Resampling.LANCZOS)
@@ -25,3 +25,30 @@ class GameUI:
             self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
         except:
             self.frame.configure(bg="#ADD8E6")
+# start screen
+        self.make_start_screen()
+        
+        # game canvas
+        self.game_canvas = tk.Canvas(self.frame, bg="white", highlightthickness=2, highlightbackground="#00CED1")
+        self.game_image = None
+        
+        # feedback label
+        self.feedback = tk.Label(self.frame, text="", font=("Arial", 16), bg="#ADD8E6", fg="#FF0000")
+    
+    def make_start_screen(self):
+        # clear the frame
+        for thing in self.frame.winfo_children():
+            if thing != self.bg_label:  
+                thing.destroy()
+
+# title frame 
+        title_frame = tk.Frame(self.frame, bg="#ADD8E6")
+        title_frame.pack(pady=30)
+        
+        # title
+        title = tk.Label(title_frame, text="Chameleon Hunt", font=("Arial", 36, "bold"), fg="#800080", bg="#ADD8E6")
+        title.pack()
+        
+        # welcome message
+        welcome = tk.Label(title_frame, text="Can you find the sneaky chameleon?", font=("Arial", 14, "italic"), fg="#008000", bg="#ADD8E6")
+        welcome.pack(pady=5)
