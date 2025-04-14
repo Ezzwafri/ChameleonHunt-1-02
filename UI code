@@ -71,3 +71,25 @@ class GameUI:
         
         upload_btn.bind("<Enter>", lambda e: self.animate_button(upload_btn, "#FFD700"))
         upload_btn.bind("<Leave>", lambda e: self.animate_button(upload_btn, "#FFFF00", shrink=True))
+
+# difficulty label
+        diff_label = tk.Label(self.frame, text="Pick Difficulty:", font=("Arial", 16, "bold"), bg="#ADD8E6", fg="#800080")
+        diff_label.pack(pady=10)
+        
+        # difficulty options
+        diffs = ["Easy", "Medium", "Hard"]
+        diff_colors = {"Easy": "#DDA0DD", "Medium": "#BA55D3", "Hard": "#9932CC"}
+        for d in diffs:
+            rb = tk.Radiobutton(
+                self.frame, 
+                text=d, 
+                value=d, 
+                variable=self.difficulty, 
+                font=("Arial", 14), 
+                bg="#ADD8E6", 
+                fg=diff_colors[d], 
+                selectcolor="#ADD8E6"
+            )
+            rb.pack()
+
+
