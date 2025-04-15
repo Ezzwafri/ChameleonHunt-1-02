@@ -1,4 +1,4 @@
-import tkinter as tk
+import tkinter as tk 
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import os
@@ -94,8 +94,9 @@ class GameUI:
                 command=self.show_previous_images,
                 bg="#98FB98",
                 fg="black",
-                font=("Arial", 16, "bold")
-            )
+                font=("Arial", 16, "bold"),
+                state=tk.NORMAL if len(os.listdir("game_images")) > 0 else tk.DISABLED
+                )
             prev_images_btn.pack(pady=10)
 
         # difficulty label
@@ -314,8 +315,21 @@ class GameUI:
             # Update attempts display
             self.attempts_label.config(text=f"Attempts left: {self.max_wrong_clicks}")
             
-            # Hide the chameleon (it's invisible in the game)
-            # The chameleon position is tracked but not drawn visibly
+            canvas_width = self.game_canvas.winfo_width()
+            canvas_height = self.game_canvas.winfo_height()
+            x_offset = (canvas_width - self.img_width) / 2 if canvas_width > self.img_width else 0
+            y_offset = (canvas_height - self.img_height) / 2 if canvas_height > self.img_height else 0
+
+            chameleon_canvas_x = self.chameleon_x + x_offset
+            chameleon_canvas_y = self.chameleon_y + y_offset
+            self.chameleon_emoji_id = self.game_canvas.create_text(
+            chameleon_canvas_x,
+            chameleon_canvas_y,
+            text="🦎",
+            font=("Arial", max(24, self.chameleon_radius * 2)),
+            )
+
+           
             
             # Bind click event
             self.game_canvas.bind("<Button-1>", self.handle_click)
@@ -332,7 +346,7 @@ class GameUI:
     # ------------------- GAME LOGIC -------------------
     def handle_click(self, event):
         if not self.game_active:
-            return
+         return
         
         # Get the canvas coordinates
         canvas_x = event.x
