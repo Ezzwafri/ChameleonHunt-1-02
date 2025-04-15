@@ -208,20 +208,45 @@ class GameUI:
                 img_path = os.path.join("game_images", img_name)
                 img = Image.open(img_path)
                 img.thumbnail((100, 100))
-                
                 photo = ImageTk.PhotoImage(img)
                 self.thumbnails.append(photo)
-                
+
+                # Frame for image and buttons
+                img_frame = tk.Frame(scrollable_frame)
+                img_frame.grid(row=i//3, column=i%3, padx=10, pady=10)
+
                 btn = tk.Button(
-                    scrollable_frame,
+                    img_frame,
                     image=photo,
                     text=img_name,
                     compound="top",
                     command=lambda path=img_path: self.select_previous_image(path, img_window)
                 )
-                btn.grid(row=i//3, column=i%3, padx=10, pady=10)
+                btn.pack()
+
+                # Delete button
+                del_btn = tk.Button(
+                    img_frame,
+                    text="Delete",
+                    fg="white",
+                    bg="#FF6B6B",
+                    command=lambda path=img_path, frame=img_frame: self.delete_image(path, frame, img_window)
+                )
+                del_btn.pack(pady=2)
             except Exception as e:
                 print(f"Error loading {img_name}: {str(e)}")
+    
+    def delete_image(self, img_path, frame, img_window):
+     try:
+        os.remove(img_path)
+        frame.destroy()  # Remove the frame from the previous images window
+        messagebox.showinfo("Deleted", "Image deleted successfully.")
+        
+        # Refresh the previous images window
+        img_window.destroy()
+        self.show_previous_images()  # Rebuild image list
+     except Exception as e:
+        messagebox.showerror("Error", f"Could not delete image: {str(e)}")
     
     def select_previous_image(self, image_path, window):
         window.destroy()
