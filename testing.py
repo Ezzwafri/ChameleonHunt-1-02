@@ -9,7 +9,7 @@ class GameUI:
     def __init__(self, window):
         self.window = window
         self.window.title("Chameleon Hunt")
-        self.window.geometry("800x600")
+        self.window.geometry("800x750")
         self.window.configure(bg="#ADD8E6")
          
         self.image_file = None
