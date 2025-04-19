@@ -4,7 +4,7 @@ from PIL import Image
 from skimage.feature import local_binary_pattern
 
 # Load image consistently
-image_path = "test1.jpg"
+image_path = "test2.jpg"
 # For edge detection
 cv_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
 # For variance calculation
@@ -31,5 +31,17 @@ lbp = local_binary_pattern(skimage_gray, P=8, R=1, method='uniform')
 texture_complexity = np.mean(lbp)
 print("Texture Complexity:", texture_complexity)
 
-complexity_score = edge_density * variance * texture_complexity
-print("Overall Complexity Score:", complexity_score)
+# Calculate the complexity score
+complexity = edge_density * variance * texture_complexity
+
+# Normalize to a 0-100% scale
+# You'll need to determine appropriate min/max values based on your image dataset
+# This is a simple approach - adjust based on your specific needs
+max_expected_complexity = 1000000  # Set this based on empirical testing of your images
+min_expected_complexity = 0
+
+# Normalize to percentage
+complexity_percentage = min(100, max(0, (complexity - min_expected_complexity) / 
+                          (max_expected_complexity - min_expected_complexity) * 100))
+
+print(f"Overall Complexity Score: {complexity_percentage:.2f}%")
