@@ -54,3 +54,29 @@ print(f"Overall Complexity Score: {complexity_percentage:.2f}%")
 complexity_score = edge_density * variance * texture_complexity
 print("Overall Complexity Score:", complexity_score)
 >>>>>>> 0335502bd6b2501ad8a3919bda6d07779fe3adab
+
+def classify_complexity(complexity_score):
+    # Normalization and classification thresholds
+    max_expected_complexity = 1000000  # Empirical threshold
+    min_expected_complexity = 0
+
+    # Normalize complexity score to percentage scale
+    complexity_percentage = min(100, max(0, (complexity_score - min_expected_complexity) / 
+                                         (max_expected_complexity - min_expected_complexity) * 100))
+    
+    print(f"Normalized Complexity Percentage: {complexity_percentage:.2f}%")
+
+    # Classification
+    if complexity_percentage > 70:
+        return "High Complexity"
+    elif complexity_percentage > 40:
+        return "Medium Complexity"
+    else:
+        return "Low Complexity"
+
+# Example usage
+image_path = "test.jpg"  # Replace with your image path
+complexity_score = calculate_complexity(image_path)
+classification = classify_complexity(complexity_score)
+
+print(f"Image Classification: {classification}")
