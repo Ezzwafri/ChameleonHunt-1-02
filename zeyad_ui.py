@@ -1,0 +1,186 @@
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from PIL import Image, ImageTk  
+from game_functions import GameLogic 
+
+class GameUI:
+    def __init__(self, window):
+        self.window = window
+        self.window.title("Chameleon Hunt")
+        self.window.geometry("800x600") 
+        self.image_file = None
+        self.difficulty = tk.StringVar(value="Medium")
+ # background color 
+        self.window.configure(bg="#ADD8E6")
+        
+        # main frame
+        self.frame = tk.Frame(self.window, bg="#ADD8E6")
+        self.frame.pack(expand=True, fill="both")
+        
+        # background image
+        try:
+            bg_img = Image.open("jungle_bg.jpg")  
+            bg_img = bg_img.resize((800, 600), Image.Resampling.LANCZOS)
+            self.bg_photo = ImageTk.PhotoImage(bg_img)
+            self.bg_label = tk.Label(self.frame, image=self.bg_photo)
+            self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+        except:
+            self.frame.configure(bg="#ADD8E6")
+# start screen
+        self.make_start_screen()
+        
+        # game canvas
+        self.game_canvas = tk.Canvas(self.frame, bg="white", highlightthickness=2, highlightbackground="#00CED1")
+        self.game_image = None
+        
+        # feedback label
+        self.feedback = tk.Label(self.frame, text="", font=("Arial", 16), bg="#ADD8E6", fg="#FF0000")
+    
+    def make_start_screen(self):
+        # clear the frame
+        for thing in self.frame.winfo_children():
+            if thing != self.bg_label:  
+                thing.destroy()
+        # title frame 
+        title_frame = tk.Frame(self.frame, bg="#ADD8E6")
+        title_frame.pack(pady=30)
+        
+        # title
+        title = tk.Label(title_frame, text="Chameleon Hunt", font=("Arial", 36, "bold"), fg="#800080", bg="#ADD8E6")
+        title.pack()
+        
+        # welcome message
+        welcome = tk.Label(title_frame, text="Can you find the sneaky chameleon?", font=("Arial", 14, "italic"), fg="#008000", bg="#ADD8E6")
+        welcome.pack(pady=5)
+        # placeholder
+        chameleon_icon = tk.Label(title_frame, text="🦎", font=("Arial", 30), fg="#008000", bg="#ADD8E6")
+        chameleon_icon.pack(pady=10)
+        
+        # upload button
+        upload_btn = tk.Button(
+            self.frame, 
+            text="Upload Image", 
+            command=self.upload_pic, 
+            bg="#FFFF00",  
+            fg="black", 
+            font=("Arial", 18, "bold"),
+            relief="raised"
+        )
+        upload_btn.pack(pady=15, ipadx=30, ipady=15)  
+        
+        upload_btn.bind("<Enter>", lambda e: self.animate_button(upload_btn, "#FFD700"))
+        upload_btn.bind("<Leave>", lambda e: self.animate_button(upload_btn, "#FFFF00", shrink=True))
+# difficulty label
+        diff_label = tk.Label(self.frame, text="Pick Difficulty:", font=("Arial", 16, "bold"), bg="#ADD8E6", fg="#800080")
+        diff_label.pack(pady=10)
+        
+        # difficulty options
+        diffs = ["Easy", "Medium", "Hard"]
+        diff_colors = {"Easy": "#DDA0DD", "Medium": "#BA55D3", "Hard": "#9932CC"}
+        for d in diffs:
+            rb = tk.Radiobutton(
+                self.frame, 
+                text=d, 
+                value=d, 
+                variable=self.difficulty, 
+                font=("Arial", 14), 
+                bg="#ADD8E6", 
+                fg=diff_colors[d], 
+                selectcolor="#ADD8E6"
+            )
+            rb.pack()
+# start button
+        start_btn = tk.Button(
+            self.frame, 
+            text="Start Game", 
+            command=self.start_game, 
+            bg="#FFFF00", 
+            fg="black", 
+            font=("Arial", 18, "bold"),
+            relief="raised"
+        )
+        start_btn.pack(pady=20, ipadx=30, ipady=15)
+
+
+        # feedback label
+        self.feedback = tk.Label(self.frame, text="", font=("Arial", 16), bg="#ADD8E6", fg="#FF0000")
+        self.feedback.pack(pady=15)
+
+
+    def upload_pic(self):
+        file = filedialog.askopenfilename(filetypes=[("Image files", "*.png *.jpg *.jpeg")])
+        if file:
+            self.image_file = file
+            self.feedback.config(text="Image loaded! Ready to hunt!", fg="#008000")
+        else:
+            self.feedback.config(text="No image picked.", fg="#FF0000")
+
+    def start_game(self):
+        if not self.image_file:
+            messagebox.showerror("Error", "Upload an image first!")
+            return
+
+        # clear the screen
+        for thing in self.frame.winfo_children():
+            if thing != self.bg_label:
+                thing.destroy()
+
+        # show the game canvas
+        self.game_canvas.pack(expand=True, fill="both")
+
+        # load the image
+        try:
+            img = Image.open(self.image_file)
+            img.thumbnail((800, 600))
+            self.game_image = ImageTk.PhotoImage(img)
+            self.game_canvas.create_image(0, 0, image=self.game_image, anchor="nw")
+
+            # feedback
+            self.feedback = tk.Label(self.frame, text="Find the chameleon!", font=("Arial", 16), bg="#ADD8E6", fg="#800080")
+            self.feedback.pack(pady=15)
+
+            # click event
+            self.game_canvas.bind("<Button-1>", self.click)
+
+            # replay button
+            replay_btn = tk.Button(
+                self.frame, 
+                text="Replay", 
+                command=self.replay, 
+                bg="#FFFF00", 
+                fg="black", 
+                font=("Arial", 14, "bold"),
+                relief="raised"
+            )
+            replay_btn.pack(pady=10, ipadx=20, ipady=10)
+            replay_btn.bind("<Enter>", lambda e: self.animate_button(replay_btn, "#FFD700"))
+            replay_btn.bind("<Leave>", lambda e: self.animate_button(replay_btn, "#FFFF00", shrink=True))
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Image didn’t load: {e}")
+            self.replay()
+
+    def click(self, event):
+        # placeholder
+        self.show_message("Try again!", False)
+
+    def show_message(self, msg, success):
+        if success:
+            self.feedback.config(text=msg, fg="#008000")
+        else:
+            self.feedback.config(text=msg, fg="#FF0000")
+        if msg == "Game Over!":
+            self.game_canvas.unbind("<Button-1>")
+            messagebox.showinfo("Game Over", "Chameleon was here! (placeholder)")
+            self.replay()
+
+    def replay(self):
+        self.image_file = None
+        self.game_canvas.delete("all")
+        self.game_canvas.pack_forget()
+        self.make_start_screen()
+
+# run the game
+window = tk.Tk()
+game = GameUI(window)
+window.mainloop()
