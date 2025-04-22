@@ -1,7 +1,8 @@
+
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from PIL import Image, ImageTk  
-from game_functions import GameLogic 
+from PIL import Image, ImageTk
+from game_functions import GameLogic
 
 class GameUI:
     def __init__(self, window):
@@ -10,7 +11,9 @@ class GameUI:
         self.window.geometry("800x600") 
         self.image_file = None
         self.difficulty = tk.StringVar(value="Medium")
- # background color 
+        self.bg_label = None
+       
+        # background color 
         self.window.configure(bg="#ADD8E6")
         
         # main frame
@@ -26,41 +29,59 @@ class GameUI:
             self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
         except:
             self.frame.configure(bg="#ADD8E6")
-# start screen
+            
+        # Create game logic manager
+        self.game_logic = GameLogic(self)
+            
+        # start screen
         self.make_start_screen()
         
-        # game canvas
-        self.game_canvas = tk.Canvas(self.frame, bg="white", highlightthickness=2, highlightbackground="#00CED1")
-        self.game_image = None
+        # Initialize game canvas and feedback label
+        self.game_canvas = None
+        self.feedback = None
+        self.create_game_elements()
+
+    def create_game_elements(self):
+        # Create game canvas if it doesn't exist
+        if not hasattr(self, 'game_canvas') or not self.game_canvas or not self.game_canvas.winfo_exists():
+            self.game_canvas = tk.Canvas(self.frame, bg="white", highlightthickness=2, highlightbackground="#00CED1")
+            self.game_canvas.pack(fill="both", expand=True)
         
-        # feedback label
-        self.feedback = tk.Label(self.frame, text="", font=("Arial", 16), bg="#ADD8E6", fg="#FF0000")
-    
+        # Create feedback label if it doesn't exist
+        if not hasattr(self, 'feedback') or not self.feedback or not self.feedback.winfo_exists():
+            self.feedback = tk.Label(self.frame, text="", font=("Arial", 16), bg="#ADD8E6", fg="#FF0000")
+            self.feedback.pack(pady=15)
+
     def make_start_screen(self):
-        # clear the frame
-        for thing in self.frame.winfo_children():
-            if thing != self.bg_label:  
-                thing.destroy()
-        # title frame 
+        # Clear the frame
+        for widget in self.frame.winfo_children():
+            if widget != getattr(self, "bg_label", None):
+                try:
+                    widget.destroy()
+                except tk.TclError:
+                    pass  # Widget already destroyed
+                
+        # Title frame 
         title_frame = tk.Frame(self.frame, bg="#ADD8E6")
         title_frame.pack(pady=30)
         
-        # title
+        # Title
         title = tk.Label(title_frame, text="Chameleon Hunt", font=("Arial", 36, "bold"), fg="#800080", bg="#ADD8E6")
         title.pack()
         
-        # welcome message
+        # Welcome message
         welcome = tk.Label(title_frame, text="Can you find the sneaky chameleon?", font=("Arial", 14, "italic"), fg="#008000", bg="#ADD8E6")
         welcome.pack(pady=5)
-        # placeholder
+        
+        # Placeholder
         chameleon_icon = tk.Label(title_frame, text="🦎", font=("Arial", 30), fg="#008000", bg="#ADD8E6")
         chameleon_icon.pack(pady=10)
         
-        # upload button
+        # Upload button
         upload_btn = tk.Button(
             self.frame, 
             text="Upload Image", 
-            command=self.upload_pic, 
+            command=self.upload_pic,
             bg="#FFFF00",  
             fg="black", 
             font=("Arial", 18, "bold"),
@@ -70,11 +91,12 @@ class GameUI:
         
         upload_btn.bind("<Enter>", lambda e: self.animate_button(upload_btn, "#FFD700"))
         upload_btn.bind("<Leave>", lambda e: self.animate_button(upload_btn, "#FFFF00", shrink=True))
-# difficulty label
+        
+        # Difficulty label
         diff_label = tk.Label(self.frame, text="Pick Difficulty:", font=("Arial", 16, "bold"), bg="#ADD8E6", fg="#800080")
         diff_label.pack(pady=10)
         
-        # difficulty options
+        # Difficulty options
         diffs = ["Easy", "Medium", "Hard"]
         diff_colors = {"Easy": "#DDA0DD", "Medium": "#BA55D3", "Hard": "#9932CC"}
         for d in diffs:
@@ -89,7 +111,8 @@ class GameUI:
                 selectcolor="#ADD8E6"
             )
             rb.pack()
-# start button
+            
+        # Start button
         start_btn = tk.Button(
             self.frame, 
             text="Start Game", 
@@ -100,49 +123,68 @@ class GameUI:
             relief="raised"
         )
         start_btn.pack(pady=20, ipadx=30, ipady=15)
-
-
-        # feedback label
+        
+        # Create feedback label
         self.feedback = tk.Label(self.frame, text="", font=("Arial", 16), bg="#ADD8E6", fg="#FF0000")
         self.feedback.pack(pady=15)
 
+    def animate_button(self, button, color, shrink=False):
+        """Animate button hover effect"""
+        if shrink:
+            button.config(bg="#FFFF00", font=("Arial", 18, "bold"))
+        else:
+            button.config(bg=color, font=("Arial", 18, "bold"))
 
     def upload_pic(self):
         file = filedialog.askopenfilename(filetypes=[("Image files", "*.png *.jpg *.jpeg")])
         if file:
             self.image_file = file
-            self.feedback.config(text="Image loaded! Ready to hunt!", fg="#008000")
+            if hasattr(self, 'feedback') and self.feedback and self.feedback.winfo_exists():
+                self.feedback.config(text="Image loaded! Ready to hunt!", fg="#008000")
         else:
-            self.feedback.config(text="No image picked.", fg="#FF0000")
+            if hasattr(self, 'feedback') and self.feedback and self.feedback.winfo_exists():
+                self.feedback.config(text="No image picked.", fg="#FF0000")
 
     def start_game(self):
         if not self.image_file:
             messagebox.showerror("Error", "Upload an image first!")
             return
-
-        # clear the screen
-        for thing in self.frame.winfo_children():
-            if thing != self.bg_label:
-                thing.destroy()
-
-        # show the game canvas
-        self.game_canvas.pack(expand=True, fill="both")
-
-        # load the image
+            
+        # Clear the frame
+        for widget in self.frame.winfo_children():
+            if widget != getattr(self, "bg_label", None):
+                try:
+                    widget.destroy()
+                except tk.TclError:
+                    pass  # Widget already destroyed
+        
+        # Create new canvas and feedback label
+        self.game_canvas = tk.Canvas(self.frame, bg="white", highlightthickness=2, highlightbackground="#00CED1")
+        self.game_canvas.pack(fill="both", expand=True)
+        
+        self.feedback = tk.Label(self.frame, text="", font=("Arial", 16), bg="#ADD8E6", fg="#FF0000")
+        self.feedback.pack(pady=15)
+        
+        # Load the image
         try:
             img = Image.open(self.image_file)
-            img.thumbnail((800, 600))
+            img.thumbnail((800, 550))
             self.game_image = ImageTk.PhotoImage(img)
             self.game_canvas.create_image(0, 0, image=self.game_image, anchor="nw")
+            
+            # Process the image in game logic
+            self.game_logic.img_width, self.game_logic.img_height = img.size
+            
+            # Reset game state for new round
+            self.game_logic.reset_game()
+            
+            # Feedback
+            self.feedback.config(text="Click anywhere on the image!", fg="#800080")
+            
+            # Click event handler
+            self.game_canvas.bind("<Button-1>", self.game_logic.handle_click)
 
-            # feedback
-            self.feedback = tk.Label(self.frame, text="Find the chameleon!", font=("Arial", 16), bg="#ADD8E6", fg="#800080")
-            self.feedback.pack(pady=15)
-
-            # click event
-            self.game_canvas.bind("<Button-1>", self.click)
-
-            # replay button
+            # Add replay button
             replay_btn = tk.Button(
                 self.frame, 
                 text="Replay", 
@@ -157,30 +199,23 @@ class GameUI:
             replay_btn.bind("<Leave>", lambda e: self.animate_button(replay_btn, "#FFFF00", shrink=True))
 
         except Exception as e:
-            messagebox.showerror("Error", f"Image didn’t load: {e}")
+            messagebox.showerror("Error", f"Image didn't load: {e}")
             self.replay()
-
-    def click(self, event):
-        # placeholder
-        self.show_message("Try again!", False)
 
     def show_message(self, msg, success):
-        if success:
-            self.feedback.config(text=msg, fg="#008000")
-        else:
-            self.feedback.config(text=msg, fg="#FF0000")
-        if msg == "Game Over!":
-            self.game_canvas.unbind("<Button-1>")
-            messagebox.showinfo("Game Over", "Chameleon was here! (placeholder)")
-            self.replay()
+        if hasattr(self, 'feedback') and self.feedback and self.feedback.winfo_exists():
+            if success:
+                self.feedback.config(text=msg, fg="#008000")
+            else:
+                self.feedback.config(text=msg, fg="#FF0000")
 
     def replay(self):
         self.image_file = None
-        self.game_canvas.delete("all")
-        self.game_canvas.pack_forget()
         self.make_start_screen()
+        self.game_logic = GameLogic(self)
 
-# run the game
-window = tk.Tk()
-game = GameUI(window)
-window.mainloop()
+# Run the game
+if __name__ == "__main__":
+    window = tk.Tk()
+    game = GameUI(window)
+    window.mainloop()
