@@ -34,7 +34,7 @@ def calculate_complexity(image_path):
 
     # Calculate the complexity score
     complexity_score = edge_density * variance * texture_complexity
-    print("Raw Complexity Score:", complexity_score)
+    print("Complexity Score:", complexity_score)
     
     return complexity_score
 
@@ -48,7 +48,7 @@ def classify_complexity(complexity_score):
     complexity_percentage = min(100, max(0, (complexity_score - min_expected_complexity) / 
                                          (max_expected_complexity - min_expected_complexity) * 100))
     
-    print(f"Normalized Complexity Percentage: {complexity_percentage:.2f}%")
+    print(f"Complexity Percentage: {complexity_percentage:.2f}%")
 
     # Classification
     if complexity_percentage > 70:
@@ -68,7 +68,6 @@ def process_and_classify_image(image_path):
     
     print(f"Image: {image_path}")
     print(f"Classification: {classification}")
-    print(f"Complexity Score: {complexity_percentage:.2f}%")
     
     return classification, complexity_percentage
 
