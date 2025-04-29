@@ -168,7 +168,7 @@ class GameUI:
         # Load the image
         try:
             img = Image.open(self.image_file)
-            img.thumbnail((800, 550))
+            img.thumbnail((800, 600))
             self.game_image = ImageTk.PhotoImage(img)
             self.game_canvas.create_image(0, 0, image=self.game_image, anchor="nw")
             
