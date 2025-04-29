@@ -6,7 +6,7 @@ class GameLogic:
         self.game_ui = game_ui
         self.chameleon_pos = None
         self.click_count = 0
-        self.max_clicks = 3
+        self.max_clicks = 5
         self.img_width = 0
         self.img_height = 0
         self.chameleon_image = None
@@ -62,7 +62,7 @@ class GameLogic:
             # Create a copy of the original image
             game_image = self.original_image.copy()
                 
-            # Simply paste the chameleon onto the image (no blending)
+            # Simply paste the chameleon onto the image 
             game_image.paste(resized_chameleon, (pos_x, pos_y), resized_chameleon)
                 
             # Convert to Tkinter PhotoImage and update canvas
