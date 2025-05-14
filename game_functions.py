@@ -22,6 +22,14 @@ class GameLogic:
             "Medium": {"size_factor": 0.12, "num_chameleons": 5, "opacity": 0.5, "color_match": 0.85},
             "Hard": {"size_factor": 0.09, "num_chameleons": 7, "opacity": 0.3, "color_match": 1.0}
         }
+        # Add missing variables
+        self.found = False
+        self.add_time_uses = 1
+        self.add_steps_uses = 1
+        self.chameleon_x = 0
+        self.chameleon_y = 0
+        self.click_radius = 20
+        
         self.load_chameleon_image()
 
     def load_chameleon_image(self):
@@ -41,6 +49,7 @@ class GameLogic:
             self.click_count = 0
             self.chameleon_positions = []
             self.found_chameleons = []
+            self.found = False
             
             # Place chameleons strategically
             self.game_image_with_chameleons = self.place_chameleons_smartly(settings)
@@ -196,6 +205,11 @@ class GameLogic:
             blended = self.blend_chameleon(resized, bg_color, settings["opacity"], settings["color_match"])
             img.paste(blended, (x, y), blended)
             
+            # Set a reference point for the first chameleon (for timer expiration)
+            if not self.chameleon_positions:
+                self.chameleon_x = x + width/2
+                self.chameleon_y = y + height/2
+                
         return img
 
     def calculate_distance(self, x, y):
@@ -250,6 +264,7 @@ class GameLogic:
                     
                     # Check if all chameleons are found
                     if all(self.found_chameleons):
+                        self.found = True
                         clicks_used = self.click_count
                         efficiency = round((len(self.found_chameleons) / clicks_used) * 100)
                         self.game_ui.show_message(f"You found all {len(self.found_chameleons)} chameleons in {clicks_used} clicks! Efficiency rating: {efficiency}%", True)
@@ -280,3 +295,18 @@ class GameLogic:
             return
         x1, y1, x2, y2 = self.chameleon_positions[index]
         self.game_ui.game_canvas.create_rectangle(x1, y1, x2, y2, outline="lime", width=3)
+        
+    def use_add_time(self):
+        if self.add_time_uses > 0:
+            self.add_time_uses -= 1
+            self.game_ui.time_left += 15
+            self.game_ui.update_timer_display()
+            self.game_ui.update_powerup_buttons()
+            self.game_ui.show_message_in_game("+15 seconds added!")
+            
+    def use_add_steps(self):
+        if self.add_steps_uses > 0:
+            self.add_steps_uses -= 1
+            self.max_clicks += 5
+            self.game_ui.update_powerup_buttons()
+            self.game_ui.show_message_in_game("+5 clicks added!")
