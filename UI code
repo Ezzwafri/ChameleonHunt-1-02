@@ -1,7 +1,102 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
-from game_functions import GameLogic
+import random
+
+class GameLogic:
+    def __init__(self, ui):
+        self.ui = ui
+        self.img_width = 0
+        self.img_height = 0
+        self.chameleon_x = 0
+        self.chameleon_y = 0
+        self.click_radius = 30
+        self.found = False
+        self.circle_id = None
+        self.attempts = 0
+        self.max_attempts = 5
+    
+    def reset_game(self):
+        self.found = False
+        self.attempts = 0
+        if self.circle_id:
+            self.ui.game_canvas.delete(self.circle_id)
+            self.circle_id = None
+        margin = 50
+        self.chameleon_x = random.randint(margin, self.img_width - margin)
+        self.chameleon_y = random.randint(margin, self.img_height - margin)
+        difficulty = self.ui.difficulty.get()
+        if difficulty == "Easy":
+            self.click_radius = 50
+            self.max_attempts = 8
+        elif difficulty == "Medium":
+            self.click_radius = 30
+            self.max_attempts = 5
+        else:
+            self.click_radius = 15
+            self.max_attempts = 3
+
+    def use_add_time(self):
+        if self.ui.points < 20 or self.found or not self.ui.timer_running:
+            return
+        self.ui.points -= 20
+        difficulty = self.ui.difficulty.get()
+        time_to_add = 15 if difficulty == "Easy" else 10 if difficulty == "Medium" else 5
+        self.ui.time_left += time_to_add
+        self.ui.update_timer_display()
+        self.ui.show_message_in_game(f"+ {time_to_add} seconds")
+        self.ui.update_points_display()
+        self.ui.update_powerup_buttons()
+
+    def use_add_steps(self):
+        if self.ui.points < 15 or self.found:
+            return
+        self.ui.points -= 15
+        steps_to_add = 2 if self.ui.difficulty.get() == "Easy" else 1
+        self.max_attempts += steps_to_add
+        self.ui.show_message_in_game(f"+ {steps_to_add} steps")
+        self.ui.update_points_display()
+        self.ui.update_powerup_buttons()
+
+    def handle_click(self, event):
+        if self.found or self.ui.paused:
+            return
+        x, y = event.x, event.y
+        distance = ((x - self.chameleon_x) ** 2 + (y - self.chameleon_y) ** 2) ** 0.5
+        if distance <= self.click_radius:
+            self.found = True
+            self.circle_id = self.ui.game_canvas.create_oval(
+                self.chameleon_x - self.click_radius, 
+                self.chameleon_y - self.click_radius,
+                self.chameleon_x + self.click_radius, 
+                self.chameleon_y + self.click_radius,
+                outline="green", width=3
+            )
+            if self.ui.timer_running:
+                self.ui.stop_timer()
+            self.ui.points += 20
+            self.ui.show_message("You found the chameleon! Great job!", True)
+            self.ui.update_points_display()
+        else:
+            self.attempts += 1
+            attempts_left = self.max_attempts - self.attempts
+            if attempts_left <= 0:
+                self.circle_id = self.ui.game_canvas.create_oval(
+                    self.chameleon_x - self.click_radius, 
+                    self.chameleon_y - self.click_radius,
+                    self.chameleon_x + self.click_radius, 
+                    self.chameleon_y + self.click_radius,
+                    outline="red", width=3
+                )
+                self.ui.show_message("Game over! The chameleon was here!", False)
+                if self.ui.timer_running:
+                    self.ui.stop_timer()
+            else:
+                if distance < 50:
+                    self.ui.points += 10
+                    self.ui.update_points_display()
+                hint = "Very close! " if distance < 100 else "Getting warmer! " if distance < 200 else ""
+                self.ui.show_message(f"{hint}Keep looking! {attempts_left} attempts left.", False)
 
 class GameUI:
     def __init__(self, window):
@@ -15,6 +110,7 @@ class GameUI:
         self.timer_running = False
         self.time_left = 0
         self.timer_id = None
+        self.points = 0
         
         self.frame = tk.Frame(self.window, bg="#ADD8E6")
         self.frame.pack(expand=True, fill="both")
@@ -66,6 +162,8 @@ class GameUI:
         self.timer_frame.pack(before=self.game_canvas, pady=5)
         self.timer_display = tk.Label(self.timer_frame, text="Time: 0:00", font=("Arial", 18, "bold"), bg="#ADD8E6", fg="#FF5733")
         self.timer_display.pack(padx=10)
+        self.points_display = tk.Label(self.timer_frame, text=f"Points: {self.points}", font=("Arial", 14), bg="#ADD8E6", fg="#0000FF")
+        self.points_display.pack(padx=10)
         self.powerup_frame = tk.Frame(self.frame, bg="#ADD8E6")
         self.powerup_frame.pack(before=self.game_canvas, pady=5)
         self.button_frame = tk.Frame(self.frame, bg="#ADD8E6")
@@ -91,16 +189,18 @@ class GameUI:
     def create_powerup_buttons(self):
         self.top_left_message = tk.Label(self.frame, text="", font=("Arial", 14, "bold"), bg="#ADD8E6", fg="#800080")
         self.top_left_message.place(x=10, y=10)
-        if self.game_logic.add_time_uses > 0:
-            self.add_time_btn = tk.Button(self.powerup_frame, text=f"Add Time ({self.game_logic.add_time_uses})", command=self.game_logic.use_add_time, bg="#32CD32", fg="black", font=("Arial", 12, "bold"), relief="raised")
-            self.add_time_btn.pack(side="left", padx=5)
-            self.add_time_btn.bind("<Enter>", lambda e: self.add_time_btn.config(bg="#228B22"))
-            self.add_time_btn.bind("<Leave>", lambda e: self.add_time_btn.config(bg="#32CD32"))
-        if self.game_logic.add_steps_uses > 0:
-            self.add_steps_btn = tk.Button(self.powerup_frame, text=f"Add Steps ({self.game_logic.add_steps_uses})", command=self.game_logic.use_add_steps, bg="#FF69B4", fg="black", font=("Arial", 12, "bold"), relief="raised")
-            self.add_steps_btn.pack(side="left", padx=5)
-            self.add_steps_btn.bind("<Enter>", lambda e: self.add_steps_btn.config(bg="#FF1493"))
-            self.add_steps_btn.bind("<Leave>", lambda e: self.add_steps_btn.config(bg="#FF69B4"))
+        
+        self.add_time_btn = tk.Button(self.powerup_frame, text="Add Time (-20)", command=self.game_logic.use_add_time, 
+                                    bg="#32CD32", fg="black", font=("Arial", 12, "bold"), relief="raised")
+        self.add_time_btn.pack(side="left", padx=5)
+        self.add_time_btn.bind("<Enter>", lambda e: self.add_time_btn.config(bg="#228B22"))
+        self.add_time_btn.bind("<Leave>", lambda e: self.add_time_btn.config(bg="#32CD32"))
+        
+        self.add_steps_btn = tk.Button(self.powerup_frame, text="Add Steps (-15)", command=self.game_logic.use_add_steps, 
+                                     bg="#FF69B4", fg="black", font=("Arial", 12, "bold"), relief="raised")
+        self.add_steps_btn.pack(side="left", padx=5)
+        self.add_steps_btn.bind("<Enter>", lambda e: self.add_steps_btn.config(bg="#FF1493"))
+        self.add_steps_btn.bind("<Leave>", lambda e: self.add_steps_btn.config(bg="#FF69B4"))
     
     def create_game_buttons(self):
         self.pause_btn = tk.Button(self.button_frame, text="Pause", command=self.toggle_pause, bg="#FFA500", fg="black", font=("Arial", 12, "bold"), relief="raised")
@@ -123,16 +223,28 @@ class GameUI:
         if self.paused:
             self.pause_btn.config(text="Resume")
             self.stop_timer()
-            if hasattr(self, 'add_time_btn'):
-                self.add_time_btn.config(state="disabled")
-            if hasattr(self, 'add_steps_btn'):
-                self.add_steps_btn.config(state="disabled")
-            self.feedback.config(text="Game Paused", fg="#FFA500")
+            self.pause_overlay = tk.Canvas(self.game_canvas, bg="gray", highlightthickness=0)
+            self.pause_overlay.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=1)
+            self.pause_overlay.create_text(self.game_canvas.winfo_width()//2, 
+                                         self.game_canvas.winfo_height()//2,
+                                         text="PAUSED", font=("Arial", 48, "bold"),
+                                         fill="white")
+            self.game_canvas.unbind("<Button-1>")
         else:
             self.pause_btn.config(text="Pause")
             self.start_timer()
-            self.update_powerup_buttons()
-            self.feedback.config(text="Click anywhere on the image!", fg="#800080")
+            if hasattr(self, 'pause_overlay'):
+                self.pause_overlay.destroy()
+            self.game_canvas.bind("<Button-1>", self.game_logic.handle_click)
+        self.update_powerup_buttons()
+    
+    def update_powerup_buttons(self):
+        time_state = "normal" if self.points >= 20 and not self.paused and not self.game_logic.found and self.timer_running else "disabled"
+        steps_state = "normal" if self.points >= 15 and not self.paused and not self.game_logic.found else "disabled"
+        
+        self.add_time_btn.config(state=time_state, bg="#32CD32" if time_state == "normal" else "#A9A9A9")
+        self.add_steps_btn.config(state=steps_state, bg="#FF69B4" if steps_state == "normal" else "#A9A9A9")
+        self.points_display.config(text=f"Points: {self.points}")
     
     def return_to_main_menu(self):
         if self.timer_id:
@@ -142,12 +254,6 @@ class GameUI:
         self.image_file = None
         self.make_start_screen()
         self.game_logic = GameLogic(self)
-    
-    def update_powerup_buttons(self):
-        if hasattr(self, 'add_time_btn'):
-            self.add_time_btn.config(text=f"Add Time ({self.game_logic.add_time_uses})", state="disabled" if self.paused or self.game_logic.add_time_uses == 0 else "normal", bg="#A9A9A9" if self.paused or self.game_logic.add_time_uses == 0 else "#32CD32")
-        if hasattr(self, 'add_steps_btn'):
-            self.add_steps_btn.config(text=f"Add Steps ({self.game_logic.add_steps_uses})", state="disabled" if self.paused or self.game_logic.add_steps_uses == 0 else "normal", bg="#A9A9A9" if self.paused or self.game_logic.add_steps_uses == 0 else "#FF69B4")
     
     def show_message_in_game(self, message):
         self.top_left_message.config(text=message)
@@ -192,7 +298,7 @@ class GameUI:
                     self.game_logic.chameleon_x - self.game_logic.click_radius, 
                     self.game_logic.chameleon_y - self.game_logic.click_radius,
                     self.game_logic.chameleon_x + self.game_logic.click_radius, 
-                    self.game_logic.chameleon_y + self.game_logic.click_radius,
+                    self.game_logic.chameleon_y + self.click_radius,
                     outline="red", width=3
                 )
                 self.show_message("Time's up! The chameleon was here!", False)
@@ -204,6 +310,9 @@ class GameUI:
         self.timer_running = False
         self.paused = False
         self.start_game()
+    
+    def update_points_display(self):
+        self.points_display.config(text=f"Points: {self.points}")
 
 if __name__ == "__main__":
     window = tk.Tk()
