@@ -317,11 +317,13 @@ class GameUI:
         if self.paused:
             self.pause_btn.config(text="Resume")
             self.stop_timer()
-            if hasattr(self, 'add_time_btn'):
-                self.add_time_btn.config(state="disabled")
-            if hasattr(self, 'add_steps_btn'):
-                self.add_steps_btn.config(state="disabled")
-            self.feedback.config(text="Game Paused", fg="#FFA500")
+            self.pause_overlay = tk.Canvas(self.game_canvas, bg="gray", highlightthickness=0)
+            self.pause_overlay.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=1)
+            self.pause_overlay.create_text(self.game_canvas.winfo_width()//2, 
+                                         self.game_canvas.winfo_height()//2,
+                                         text="PAUSED", font=("Arial", 48, "bold"),
+                                         fill="white")
+            self.game_canvas.unbind("<Button-1>")
         else:
             self.pause_btn.config(text="Pause")
             self.start_timer()
@@ -482,7 +484,7 @@ class GameUI:
                     self.game_logic.chameleon_x - self.game_logic.click_radius, 
                     self.game_logic.chameleon_y - self.game_logic.click_radius,
                     self.game_logic.chameleon_x + self.game_logic.click_radius, 
-                    self.game_logic.chameleon_y + self.game_logic.click_radius,
+                    self.game_logic.chameleon_y + self.click_radius,
                     outline="red", width=3
                 )
                 self.show_message("Time's up! The chameleon was here!", False)
