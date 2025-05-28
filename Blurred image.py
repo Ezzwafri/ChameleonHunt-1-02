@@ -336,9 +336,29 @@ class GameUI:
             self.game_canvas.bind("<Motion>", self.update_blur)
             self.game_canvas.bind("<Button-1>", self.game_logic.handle_click)
 
+<<<<<<< HEAD
         except Exception as e:
             messagebox.showerror("Error", f"Image didn't load: {e}")
             self.make_start_screen()
+=======
+            # Add replay button
+            replay_btn = tk.Button(
+                self.frame, 
+                text="Replay", 
+                command=self.replay, 
+                bg="#FFFF00", 
+                fg="black", 
+                font=("Arial", 14, "bold"),
+                relief="raised"
+            )
+            replay_btn.pack(pady=10, ipadx=20, ipady=10)
+            replay_btn.bind("<Enter>", lambda e: self.animate_button(replay_btn, "#FFD700"))
+            replay_btn.bind("<Leave>", lambda e: self.animate_button(replay_btn, "#FFFF00", shrink=True))
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Image didn't load: {e}")
+            self.replay()
+>>>>>>> 28015ee01574173c6042a44ef645f7c0af19220e
     
     def set_blur_difficulty(self):
         """Set blur parameters based on difficulty level"""
@@ -472,6 +492,25 @@ class GameUI:
             else:
                 self.feedback.config(text=msg, fg="#FF0000")
 
+<<<<<<< HEAD
+=======
+    def replay(self):
+        # Cancel any running timer
+        if self.timer_id:
+            self.window.after_cancel(self.timer_id)
+            self.timer_id = None
+        self.timer_running = False
+        
+        # Clean up image references
+        self.original_image = None
+        self.blurred_image = None
+        self.current_display_image = None
+        
+        self.image_file = None
+        self.make_start_screen()
+        self.game_logic = GameLogic(self)
+
+>>>>>>> 28015ee01574173c6042a44ef645f7c0af19220e
 # Run the game
 if __name__ == "__main__":
     window = tk.Tk()
