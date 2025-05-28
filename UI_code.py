@@ -27,6 +27,11 @@ class GameUI:
         self.blur_level = 5  # Blur intensity
         self.last_mouse_x = 0
         self.last_mouse_y = 0
+        
+        # Image scaling constants
+        self.LANDSCAPE_SIZE = (700, 500)  # For landscape images (width > height)
+        self.PORTRAIT_SIZE = (400, 550)   # For portrait images (height > width)
+        self.SQUARE_SIZE = (500, 500)     # For square images (width ≈ height)
        
         # background color 
         self.window.configure(bg="#ADD8E6")
@@ -50,6 +55,34 @@ class GameUI:
         
         # Start with the main menu
         self.make_start_screen()
+
+    def get_standardized_size(self, image):
+        """Determine the standardized size based on image orientation"""
+        width, height = image.size
+        aspect_ratio = width / height
+        
+        if aspect_ratio > 1.2:  # Landscape (width significantly larger than height)
+            return self.LANDSCAPE_SIZE
+        elif aspect_ratio < 0.8:  # Portrait (height significantly larger than width)
+            return self.PORTRAIT_SIZE
+        else:  # Square or near-square
+            return self.SQUARE_SIZE
+
+    def resize_image_proportionally(self, image, target_size):
+        """Resize image to fit within target size while maintaining aspect ratio"""
+        target_width, target_height = target_size
+        original_width, original_height = image.size
+        
+        # Calculate the scaling factor to fit within the target size
+        scale_width = target_width / original_width
+        scale_height = target_height / original_height
+        scale_factor = min(scale_width, scale_height)
+        
+        # Calculate new dimensions
+        new_width = int(original_width * scale_factor)
+        new_height = int(original_height * scale_factor)
+        
+        return image.resize((new_width, new_height), Image.LANCZOS)
 
     def make_start_screen(self):
         # Clear the frame
@@ -195,46 +228,55 @@ class GameUI:
         self.top_left_message = tk.Label(self.frame, text="", font=("Arial", 14, "bold"), bg="#ADD8E6", fg="#800080")
         self.top_left_message.place(x=10, y=10)
     
-    # Load the image
+    # Load the image with standardized scaling
         try:
         # Load original image
-          self.original_image = Image.open(self.image_file)
-          self.original_image.thumbnail((800, 600))
+            raw_image = Image.open(self.image_file)
+            
+            # Determine the appropriate standardized size based on orientation
+            target_size = self.get_standardized_size(raw_image)
+            
+            # Resize the image proportionally to fit the standardized size
+            self.original_image = self.resize_image_proportionally(raw_image, target_size)
+            
+            # Update canvas size to match the image
+            img_width, img_height = self.original_image.size
+            self.game_canvas.config(width=img_width, height=img_height)
         
         # Let GameLogic place chameleons first
         # Process the image in game logic
-          self.game_logic.img_width, self.game_logic.img_height = self.original_image.size
+            self.game_logic.img_width, self.game_logic.img_height = self.original_image.size
         
         # Reset game state for new round
-          self.game_logic.reset_game()
+            self.game_logic.reset_game()
         
         # IMPORTANT CHANGE: Now we get the image with chameleons from game_logic
-          self.original_image = self.game_logic.game_image_with_chameleons  
+            self.original_image = self.game_logic.game_image_with_chameleons  
         
         # Create blurred version AFTER chameleons are placed
-          self.blurred_image = self.original_image.filter(ImageFilter.GaussianBlur(self.blur_level))
+            self.blurred_image = self.original_image.filter(ImageFilter.GaussianBlur(self.blur_level))
         
         # Set initial display as blurred
-          self.current_display_image = self.blurred_image.copy()
-          self.game_image = ImageTk.PhotoImage(self.current_display_image)
-          self.image_on_canvas = self.game_canvas.create_image(0, 0, image=self.game_image, anchor="nw")
+            self.current_display_image = self.blurred_image.copy()
+            self.game_image = ImageTk.PhotoImage(self.current_display_image)
+            self.image_on_canvas = self.game_canvas.create_image(0, 0, image=self.game_image, anchor="nw")
         
         # Create powerup buttons
-          self.create_powerup_buttons()
+            self.create_powerup_buttons()
         
         # Create game control buttons
-          self.create_game_buttons()
+            self.create_game_buttons()
         
         # Mouse event handlers
-          self.game_canvas.bind("<Motion>", self.update_blur)
-          self.game_canvas.bind("<Button-1>", self.game_logic.handle_click)
+            self.game_canvas.bind("<Motion>", self.update_blur)
+            self.game_canvas.bind("<Button-1>", self.game_logic.handle_click)
 
         # Start the timer
-          self.start_timer()
+            self.start_timer()
 
         except Exception as e:
-          messagebox.showerror("Error", f"Image didn't load: {e}")
-          self.replay()
+            messagebox.showerror("Error", f"Image didn't load: {e}")
+            self.replay()
     
     def create_powerup_buttons(self):
         """Create powerup buttons based on available uses"""
@@ -328,25 +370,28 @@ class GameUI:
             self.pause_btn.config(text="Pause")
             self.start_timer()
             self.update_powerup_buttons()
+            if hasattr(self, "pause_overlay") and self.pause_overlay.winfo_exists():
+               self.pause_overlay.destroy()
             self.feedback.config(text="Move your mouse to reveal parts of the image! Click to guess the chameleon location!", fg="#800080")
     
     def return_to_main_menu(self):
         """Go back to the main menu"""
-        # Cancel any running timer
         if self.timer_id:
-            self.window.after_cancel(self.timer_id)
-            self.timer_id = None
+           self.window.after_cancel(self.timer_id)
+           self.timer_id = None
         self.timer_running = False
-        
-        # Clean up image references
+        self.time_left = 0  # <--- add this line to fully reset timer
+
+    # Clean up image references
         self.original_image = None
         self.blurred_image = None
         self.current_display_image = None
-        
+
         self.image_file = None
         self.paused = False
         self.make_start_screen()
         self.game_logic = GameLogic(self)
+
     
     def update_powerup_buttons(self):
         """Update the state and appearance of powerup buttons"""
@@ -420,16 +465,17 @@ class GameUI:
             print(f"Error applying dynamic blur: {e}")
     
     def set_timer_difficulty(self):
-        """Set timer duration based on difficulty"""
         difficulty_value = self.difficulty.get()
         if difficulty_value == "Easy":
-            self.time_left = 90  # 1:30
+           self.time_left = 90
         elif difficulty_value == "Medium":
-            self.time_left = 60  # 1:00
-        else:  # Hard
-            self.time_left = 30  # 0:30
-        
+             self.time_left = 60
+        else:
+          self.time_left = 30
+
+        print(f"[DEBUG] Time set to {self.time_left} seconds for {difficulty_value} difficulty")
         self.update_timer_display()
+
     
     def update_timer_display(self):
         """Update the timer display"""
@@ -450,10 +496,16 @@ class GameUI:
     def start_timer(self):
         """Start the timer"""
         if self.paused:
-            return
-            
+          return
+
+        if self.time_left <= 0:
+          print("[WARNING] Tried to start timer with 0 seconds.")
+          return
+
         self.timer_running = True
         self.tick_timer()
+
+
     
     def stop_timer(self):
         """Stop the timer"""
@@ -509,14 +561,16 @@ class GameUI:
 
     def replay(self):
         """Restart the game with the same image"""
-        # Cancel any running timer
-        if self.timer_id:
+    # Cancel any running timer
+        if  self.timer_id:
             self.window.after_cancel(self.timer_id)
             self.timer_id = None
         self.timer_running = False
         self.paused = False
-        
-        # Start a new game
+
+    # Safeguard: reset time_left to avoid triggering end screen immediately
+        self.set_timer_difficulty()  
+    # Start a new game
         self.start_game()
 
 
