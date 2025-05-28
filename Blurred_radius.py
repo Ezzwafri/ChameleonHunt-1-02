@@ -1,7 +1,8 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageFilter
 import random
+import numpy as np
 
 class GameLogic:
     def __init__(self, ui):
@@ -76,6 +77,11 @@ class GameLogic:
             if self.ui.timer_running:
                 self.ui.stop_timer()
             
+            # Show full unblurred image when chameleon is found
+            if hasattr(self.ui, 'original_image') and self.ui.original_image:
+                self.ui.game_image = ImageTk.PhotoImage(self.ui.original_image)
+                self.ui.game_canvas.itemconfig(self.ui.image_on_canvas, image=self.ui.game_image)
+            
             self.ui.show_message(f"You found the chameleon! Great job!", True)
         else:
             # Wrong click
@@ -84,6 +90,13 @@ class GameLogic:
             
             if attempts_left <= 0:
                 # Game over
+                
+                # Show full unblurred image first
+                if hasattr(self.ui, 'original_image') and self.ui.original_image:
+                    self.ui.game_image = ImageTk.PhotoImage(self.ui.original_image)
+                    self.ui.game_canvas.itemconfig(self.ui.image_on_canvas, image=self.ui.game_image)
+                
+                # Then draw circle
                 self.circle_id = self.ui.game_canvas.create_oval(
                     self.chameleon_x - self.click_radius, 
                     self.chameleon_y - self.click_radius,
@@ -119,7 +132,17 @@ class GameUI:
         self.timer_running = False
         self.time_left = 0
         self.timer_id = None
-       
+        
+        # Blur variables
+        self.original_image = None
+        self.blurred_image = None
+        self.current_display_image = None
+        self.clear_radius = 100  # Radius of clear area
+        self.blur_level = 5  # Blur intensity
+        self.last_mouse_x = 0
+        self.last_mouse_y = 0
+        self.initial_clear_radius = self.clear_radius  # To store initial radius for dynamic change
+        
         # background color 
         self.window.configure(bg="#ADD8E6")
         
@@ -277,6 +300,10 @@ class GameUI:
         self.timer_display = tk.Label(self.timer_frame, text="Time: 0:00", font=("Arial", 18, "bold"), bg="#ADD8E6", fg="#FF5733")
         self.timer_display.pack(padx=10)
         
+        # Set difficulty-specific blur settings
+        self.set_blur_difficulty()
+        self.initial_clear_radius = self.clear_radius  # Save initial clear radius for dynamic adjustments
+        
         # Set time based on difficulty and start the timer automatically
         self.set_timer_difficulty()
         self.start_timer()
@@ -286,26 +313,87 @@ class GameUI:
         
         # Load the image
         try:
-            img = Image.open(self.image_file)
-            img.thumbnail((800, 600))
-            self.game_image = ImageTk.PhotoImage(img)
-            self.game_canvas.create_image(0, 0, image=self.game_image, anchor="nw")
+            # Load original image
+            self.original_image = Image.open(self.image_file)
+            self.original_image.thumbnail((800, 600))
+            
+            # Create blurred version
+            self.blurred_image = self.original_image.filter(ImageFilter.GaussianBlur(self.blur_level))
+            
+            # Set initial display as blurred
+            self.current_display_image = self.blurred_image.copy()
+            self.game_image = ImageTk.PhotoImage(self.current_display_image)
+            self.image_on_canvas = self.game_canvas.create_image(0, 0, image=self.game_image, anchor="nw")
             
             # Process the image in game logic
-            self.game_logic.img_width, self.game_logic.img_height = img.size
+            self.game_logic.img_width, self.game_logic.img_height = self.original_image.size
             
             # Reset game state for new round
             self.game_logic.reset_game()
             
             # Feedback
-            self.feedback.config(text="Click anywhere on the image!", fg="#800080")
+            self.feedback.config(text="Move your mouse to reveal parts of the image! Click to guess the chameleon location!", fg="#800080")
             
-            # Click event handler
+            # Mouse event handlers
+            self.game_canvas.bind("<Motion>", self.update_blur)
             self.game_canvas.bind("<Button-1>", self.game_logic.handle_click)
 
         except Exception as e:
             messagebox.showerror("Error", f"Image didn't load: {e}")
             self.replay()
+    
+    def set_blur_difficulty(self):
+        """Set blur parameters based on difficulty level"""
+        difficulty_value = self.difficulty.get()
+        if difficulty_value == "Easy":
+            self.blur_level = 5
+            self.clear_radius = 150
+        elif difficulty_value == "Medium":
+            self.blur_level = 8
+            self.clear_radius = 100
+        else:  # Hard
+            self.blur_level = 12
+            self.clear_radius = 50
+    
+    def update_blur(self, event):
+        """Update the dynamic blur based on mouse position"""
+        if self.game_logic.found:
+            return
+            
+        # Get mouse position
+        x, y = event.x, event.y
+        self.last_mouse_x, self.last_mouse_y = x, y
+        
+        # Update the image with a clear circular area around the cursor
+        self.apply_dynamic_blur(x, y)
+    
+    def apply_dynamic_blur(self, x, y):
+        """Apply dynamic blurring with a clear area around cursor position"""
+        if self.original_image is None or self.blurred_image is None:
+            return
+            
+        try:
+            # Create a copy of the blurred image
+            self.current_display_image = self.blurred_image.copy()
+            
+            # Create a blank mask the same size as our image
+            mask = Image.new('L', self.original_image.size, 0)
+            
+            # Draw a white circle at the cursor position with current clear_radius
+            from PIL import ImageDraw
+            draw = ImageDraw.Draw(mask)
+            draw.ellipse((x - self.clear_radius, y - self.clear_radius, 
+                          x + self.clear_radius, y + self.clear_radius), fill=255)
+            
+            # Paste the original image onto the blurred one using the mask
+            self.current_display_image.paste(self.original_image, (0, 0), mask)
+            
+            # Update the displayed image
+            self.game_image = ImageTk.PhotoImage(self.current_display_image)
+            self.game_canvas.itemconfig(self.image_on_canvas, image=self.game_image)
+            
+        except Exception as e:
+            print(f"Error applying dynamic blur: {e}")
     
     def set_timer_difficulty(self):
         """Set timer duration based on difficulty"""
@@ -351,7 +439,24 @@ class GameUI:
         """Update timer each second"""
         if self.timer_running and self.time_left > 0:
             self.time_left -= 1
+
+            # Dynamically decrease clear_radius proportional to time left
+            # The clear radius decreases from initial_clear_radius down to a min of 20 pixels linearly over the time
+            min_radius = 20
+            total_time = 0
+            if self.difficulty.get() == "Easy":
+                total_time = 90
+            elif self.difficulty.get() == "Medium":
+                total_time = 60
+            else:
+                total_time = 30
+            ratio = max(self.time_left / total_time, 0)
+            self.clear_radius = int(min_radius + (self.initial_clear_radius - min_radius) * ratio)
+
             self.update_timer_display()
+            # Refresh blur with new clear radius to reflect change immediately
+            self.apply_dynamic_blur(self.last_mouse_x, self.last_mouse_y)
+
             self.timer_id = self.window.after(1000, self.tick_timer)
         elif self.timer_running and self.time_left <= 0:
             self.timer_running = False
@@ -359,6 +464,12 @@ class GameUI:
             
             # End the game by showing the chameleon position
             if not self.game_logic.found:
+                # Show unblurred image first when game ends
+                if self.original_image:
+                    self.game_image = ImageTk.PhotoImage(self.original_image)
+                    self.game_canvas.itemconfig(self.image_on_canvas, image=self.game_image)
+                
+                # Then draw the chameleon circle
                 self.game_logic.circle_id = self.game_canvas.create_oval(
                     self.game_logic.chameleon_x - self.game_logic.click_radius, 
                     self.game_logic.chameleon_y - self.game_logic.click_radius,
@@ -380,8 +491,26 @@ class GameUI:
             else:
                 self.feedback.config(text=msg, fg="#FF0000")
 
+    def replay(self):
+        # Cancel any running timer
+        if self.timer_id:
+            self.window.after_cancel(self.timer_id)
+            self.timer_id = None
+        self.timer_running = False
+        
+        # Clean up image references
+        self.original_image = None
+        self.blurred_image = None
+        self.current_display_image = None
+        
+        self.image_file = None
+        self.make_start_screen()
+        self.game_logic = GameLogic(self)
+
+
 # Run the game
 if __name__ == "__main__":
     window = tk.Tk()
     game = GameUI(window)
     window.mainloop()
+
