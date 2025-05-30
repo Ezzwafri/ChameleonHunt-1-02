@@ -494,4 +494,3 @@ if __name__ == "__main__":
     window = tk.Tk()
     game = GameUI(window)
     window.mainloop()
-
