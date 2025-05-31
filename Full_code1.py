@@ -141,6 +141,7 @@ class GameUI:
         self.blur_level = 5  # Blur intensity
         self.last_mouse_x = 0
         self.last_mouse_y = 0
+        self.initial_clear_radius = self.clear_radius  # To store initial radius for dynamic change
        
         # background color 
         self.window.configure(bg="#ADD8E6")
@@ -301,6 +302,7 @@ class GameUI:
         
         # Set difficulty-specific blur settings
         self.set_blur_difficulty()
+        self.initial_clear_radius = self.clear_radius  # Save initial clear radius for dynamic adjustments
         
         # Set time based on difficulty and start the timer automatically
         self.set_timer_difficulty()
@@ -437,7 +439,24 @@ class GameUI:
         """Update timer each second"""
         if self.timer_running and self.time_left > 0:
             self.time_left -= 1
+           
+            # Dynamically decrease clear_radius proportional to time left
+            # The clear radius decreases from initial_clear_radius down to a min of 20 pixels linearly over the time
+            min_radius = 20
+            total_time = 0
+            if self.difficulty.get() == "Easy":
+                total_time = 90
+            elif self.difficulty.get() == "Medium":
+                total_time = 60
+            else:
+                total_time = 30
+            ratio = max(self.time_left / total_time, 0)
+            self.clear_radius = int(min_radius + (self.initial_clear_radius - min_radius) * ratio)
+
             self.update_timer_display()
+            # Refresh blur with new clear radius to reflect change immediately
+            self.apply_dynamic_blur(self.last_mouse_x, self.last_mouse_y)
+            
             self.timer_id = self.window.after(1000, self.tick_timer)
         elif self.timer_running and self.time_left <= 0:
             self.timer_running = False
