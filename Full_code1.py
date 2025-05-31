@@ -452,11 +452,19 @@ class GameUI:
                 total_time = 30
             ratio = max(self.time_left / total_time, 0)
             self.clear_radius = int(min_radius + (self.initial_clear_radius - min_radius) * ratio)
+<<<<<<< HEAD
            
             self.update_timer_display()
             # Refresh blur with new clear radius to reflect change immediately
             self.apply_dynamic_blur(self.last_mouse_x, self.last_mouse_y)
            
+=======
+
+            self.update_timer_display()
+            # Refresh blur with new clear radius to reflect change immediately
+            self.apply_dynamic_blur(self.last_mouse_x, self.last_mouse_y)
+            
+>>>>>>> c5201b7a1bfa3dbb4a7a04677d1b5d54450cea4f
             self.timer_id = self.window.after(1000, self.tick_timer)
         elif self.timer_running and self.time_left <= 0:
             self.timer_running = False
