@@ -27,6 +27,11 @@ class GameUI:
         self.blur_level = 5  # Blur intensity
         self.last_mouse_x = 0
         self.last_mouse_y = 0
+        
+        # Image scaling constants
+        self.LANDSCAPE_SIZE = (700, 500)  # For landscape images (width > height)
+        self.PORTRAIT_SIZE = (400, 550)   # For portrait images (height > width)
+        self.SQUARE_SIZE = (500, 500)     # For square images (width ≈ height)
        
         # background color 
         self.window.configure(bg="#ADD8E6")
@@ -50,6 +55,34 @@ class GameUI:
         
         # Start with the main menu
         self.make_start_screen()
+
+    def get_standardized_size(self, image):
+        """Determine the standardized size based on image orientation"""
+        width, height = image.size
+        aspect_ratio = width / height
+        
+        if aspect_ratio > 1.2:  # Landscape (width significantly larger than height)
+            return self.LANDSCAPE_SIZE
+        elif aspect_ratio < 0.8:  # Portrait (height significantly larger than width)
+            return self.PORTRAIT_SIZE
+        else:  # Square or near-square
+            return self.SQUARE_SIZE
+
+    def resize_image_proportionally(self, image, target_size):
+        """Resize image to fit within target size while maintaining aspect ratio"""
+        target_width, target_height = target_size
+        original_width, original_height = image.size
+        
+        # Calculate the scaling factor to fit within the target size
+        scale_width = target_width / original_width
+        scale_height = target_height / original_height
+        scale_factor = min(scale_width, scale_height)
+        
+        # Calculate new dimensions
+        new_width = int(original_width * scale_factor)
+        new_height = int(original_height * scale_factor)
+        
+        return image.resize((new_width, new_height), Image.LANCZOS)
 
     def make_start_screen(self):
         # Clear the frame
@@ -195,46 +228,55 @@ class GameUI:
         self.top_left_message = tk.Label(self.frame, text="", font=("Arial", 14, "bold"), bg="#ADD8E6", fg="#800080")
         self.top_left_message.place(x=10, y=10)
     
-    # Load the image
+    # Load the image with standardized scaling
         try:
         # Load original image
-          self.original_image = Image.open(self.image_file)
-          self.original_image.thumbnail((800, 600))
+            raw_image = Image.open(self.image_file)
+            
+            # Determine the appropriate standardized size based on orientation
+            target_size = self.get_standardized_size(raw_image)
+            
+            # Resize the image proportionally to fit the standardized size
+            self.original_image = self.resize_image_proportionally(raw_image, target_size)
+            
+            # Update canvas size to match the image
+            img_width, img_height = self.original_image.size
+            self.game_canvas.config(width=img_width, height=img_height)
         
         # Let GameLogic place chameleons first
         # Process the image in game logic
-          self.game_logic.img_width, self.game_logic.img_height = self.original_image.size
+            self.game_logic.img_width, self.game_logic.img_height = self.original_image.size
         
         # Reset game state for new round
-          self.game_logic.reset_game()
+            self.game_logic.reset_game()
         
         # IMPORTANT CHANGE: Now we get the image with chameleons from game_logic
-          self.original_image = self.game_logic.game_image_with_chameleons  
+            self.original_image = self.game_logic.game_image_with_chameleons  
         
         # Create blurred version AFTER chameleons are placed
-          self.blurred_image = self.original_image.filter(ImageFilter.GaussianBlur(self.blur_level))
+            self.blurred_image = self.original_image.filter(ImageFilter.GaussianBlur(self.blur_level))
         
         # Set initial display as blurred
-          self.current_display_image = self.blurred_image.copy()
-          self.game_image = ImageTk.PhotoImage(self.current_display_image)
-          self.image_on_canvas = self.game_canvas.create_image(0, 0, image=self.game_image, anchor="nw")
+            self.current_display_image = self.blurred_image.copy()
+            self.game_image = ImageTk.PhotoImage(self.current_display_image)
+            self.image_on_canvas = self.game_canvas.create_image(0, 0, image=self.game_image, anchor="nw")
         
         # Create powerup buttons
-          self.create_powerup_buttons()
+            self.create_powerup_buttons()
         
         # Create game control buttons
-          self.create_game_buttons()
+            self.create_game_buttons()
         
         # Mouse event handlers
-          self.game_canvas.bind("<Motion>", self.update_blur)
-          self.game_canvas.bind("<Button-1>", self.game_logic.handle_click)
+            self.game_canvas.bind("<Motion>", self.update_blur)
+            self.game_canvas.bind("<Button-1>", self.game_logic.handle_click)
 
         # Start the timer
-          self.start_timer()
+            self.start_timer()
 
         except Exception as e:
-          messagebox.showerror("Error", f"Image didn't load: {e}")
-          self.replay()
+            messagebox.showerror("Error", f"Image didn't load: {e}")
+            self.replay()
     
     def create_powerup_buttons(self):
         """Create powerup buttons based on available uses"""
@@ -328,6 +370,8 @@ class GameUI:
             self.pause_btn.config(text="Pause")
             self.start_timer()
             self.update_powerup_buttons()
+            if hasattr(self, "pause_overlay") and self.pause_overlay.winfo_exists():
+               self.pause_overlay.destroy()
             self.feedback.config(text="Move your mouse to reveal parts of the image! Click to guess the chameleon location!", fg="#800080")
     
     def return_to_main_menu(self):
@@ -429,6 +473,7 @@ class GameUI:
         else:  # Hard
             self.time_left = 30  # 0:30
         
+        self.total_time = self.time_left#  Store it for dynamic blur scaling
         self.update_timer_display()
     
     def update_timer_display(self):
@@ -463,36 +508,39 @@ class GameUI:
             self.timer_id = None
     
     def tick_timer(self):
-        """Update timer each second"""
-        if self.timer_running and self.time_left > 0:
-            self.time_left -= 1
-            self.update_timer_display()
-            self.timer_id = self.window.after(1000, self.tick_timer)
-        elif self.timer_running and self.time_left <= 0:
-            self.timer_running = False
-            self.timer_display.config(text="Time's Up!", fg="#FF0000")
-            
-            # End the game by showing the chameleon position
-            if not self.game_logic.found:
-                # Show unblurred image first when game ends
-                if self.original_image:
-                    self.game_image = ImageTk.PhotoImage(self.original_image)
-                    self.game_canvas.itemconfig(self.image_on_canvas, image=self.game_image)
-                
-                # Then draw the chameleon circle
-                self.game_logic.circle_id = self.game_canvas.create_oval(
-                    self.game_logic.chameleon_x - self.game_logic.click_radius, 
-                    self.game_logic.chameleon_y - self.game_logic.click_radius,
-                    self.game_logic.chameleon_x + self.game_logic.click_radius, 
-                    self.game_logic.chameleon_y + self.click_radius,
-                    outline="red", width=3
-                )
-                self.show_message("Time's up! The chameleon was here!", False)
-                
-                # Set found to true to prevent further clicks
-                self.game_logic.found = True
-                
-            messagebox.showinfo("Time's Up!", "Time's up! Game over.")
+        
+       """Update timer each second and reduce clear radius over time"""
+       if self.timer_running and self.time_left > 0:
+          self.time_left -= 1
+
+        # Dynamically adjust blur clear radius
+          min_radius = 20
+          if not hasattr(self, 'initial_clear_radius'):
+             self.initial_clear_radius = self.clear_radius
+
+          ratio = max(self.time_left / self.total_time, 0)
+          self.clear_radius = int(min_radius + (self.initial_clear_radius - min_radius) * ratio)
+
+          self.update_timer_display()
+          self.apply_dynamic_blur(self.last_mouse_x, self.last_mouse_y)
+
+          self.timer_id = self.window.after(1000, self.tick_timer)
+
+       elif self.timer_running and self.time_left <= 0:
+             self.timer_running = False
+             self.timer_display.config(text="Time's Up!", fg="#FF0000")
+
+             if not self.game_logic.found:
+               if self.original_image:
+                  self.game_image = ImageTk.PhotoImage(self.original_image)
+                  self.game_canvas.itemconfig(self.image_on_canvas, image=self.game_image)
+
+                  self.game_logic.highlight_chameleons_red()
+                  self.show_message("Time's up! You missed some chameleons!", False)
+                  self.game_logic.found = True
+
+             messagebox.showinfo("Time's Up!", "Time's up! Game over.")
+
 
     def show_message_in_game(self, message):
         """Show a temporary message in the game area"""
