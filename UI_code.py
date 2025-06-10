@@ -473,6 +473,7 @@ class GameUI:
         else:  # Hard
             self.time_left = 30  # 0:30
         
+        self.total_time = self.time_left#  Store it for dynamic blur scaling
         self.update_timer_display()
     
     def update_timer_display(self):
@@ -507,36 +508,39 @@ class GameUI:
             self.timer_id = None
     
     def tick_timer(self):
-        """Update timer each second"""
-        if self.timer_running and self.time_left > 0:
-            self.time_left -= 1
-            self.update_timer_display()
-            self.timer_id = self.window.after(1000, self.tick_timer)
-        elif self.timer_running and self.time_left <= 0:
-            self.timer_running = False
-            self.timer_display.config(text="Time's Up!", fg="#FF0000")
-            
-            # End the game by showing the chameleon position
-            if not self.game_logic.found:
-                # Show unblurred image first when game ends
-                if self.original_image:
-                    self.game_image = ImageTk.PhotoImage(self.original_image)
-                    self.game_canvas.itemconfig(self.image_on_canvas, image=self.game_image)
-                
-                # Then draw the chameleon circle
-                self.game_logic.circle_id = self.game_canvas.create_oval(
-                    self.game_logic.chameleon_x - self.game_logic.click_radius, 
-                    self.game_logic.chameleon_y - self.game_logic.click_radius,
-                    self.game_logic.chameleon_x + self.game_logic.click_radius, 
-                    self.game_logic.chameleon_y + self.game_logic.click_radius,
-                    outline="red", width=3
-                )
-                self.show_message("Time's up! The chameleon was here!", False)
-                
-                # Set found to true to prevent further clicks
-                self.game_logic.found = True
-                
-            messagebox.showinfo("Time's Up!", "Time's up! Game over.")
+        
+       """Update timer each second and reduce clear radius over time"""
+       if self.timer_running and self.time_left > 0:
+          self.time_left -= 1
+
+        # Dynamically adjust blur clear radius
+          min_radius = 20
+          if not hasattr(self, 'initial_clear_radius'):
+             self.initial_clear_radius = self.clear_radius
+
+          ratio = max(self.time_left / self.total_time, 0)
+          self.clear_radius = int(min_radius + (self.initial_clear_radius - min_radius) * ratio)
+
+          self.update_timer_display()
+          self.apply_dynamic_blur(self.last_mouse_x, self.last_mouse_y)
+
+          self.timer_id = self.window.after(1000, self.tick_timer)
+
+       elif self.timer_running and self.time_left <= 0:
+             self.timer_running = False
+             self.timer_display.config(text="Time's Up!", fg="#FF0000")
+
+             if not self.game_logic.found:
+               if self.original_image:
+                  self.game_image = ImageTk.PhotoImage(self.original_image)
+                  self.game_canvas.itemconfig(self.image_on_canvas, image=self.game_image)
+
+                  self.game_logic.highlight_chameleons_red()
+                  self.show_message("Time's up! You missed some chameleons!", False)
+                  self.game_logic.found = True
+
+             messagebox.showinfo("Time's Up!", "Time's up! Game over.")
+
 
     def show_message_in_game(self, message):
         """Show a temporary message in the game area"""

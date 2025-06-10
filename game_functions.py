@@ -100,7 +100,7 @@ class GameLogic:
             if hasattr(self.game_ui, 'update_powerup_buttons'):
                 self.game_ui.update_powerup_buttons()
             # Adjust difficulty
-            difficulty = self.ui.difficulty.get()
+            difficulty = self.game_ui.difficulty.get()
             if difficulty == "Easy":
                 self.click_radius = 50
                 self.max_attempts = 8
@@ -366,14 +366,7 @@ class GameLogic:
             self.game_ui.show_message(f"{msg} Clicks left: {clicks_left}", True)
             self.show_heatmap_indicator(x, y, dist)
         
-            # Stop timer if running
-            if self.ui.timer_running:
-                self.ui.stop_timer()
-            
-            # Show full unblurred image when chameleon is found
-            if hasattr(self.ui, 'original_image') and self.ui.original_image:
-                self.ui.game_image = ImageTk.PhotoImage(self.ui.original_image)
-                self.ui.game_canvas.itemconfig(self.ui.image_on_canvas, image=self.ui.game_image)
+           
 
     def show_heatmap_indicator(self, x, y, distance):
         """Show a visual indicator at click position based on distance to nearest chameleon"""
