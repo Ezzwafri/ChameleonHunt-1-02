@@ -376,22 +376,21 @@ class GameUI:
     
     def return_to_main_menu(self):
         """Go back to the main menu"""
+        # Cancel any running timer
         if self.timer_id:
-           self.window.after_cancel(self.timer_id)
-           self.timer_id = None
+            self.window.after_cancel(self.timer_id)
+            self.timer_id = None
         self.timer_running = False
-        self.time_left = 0  # <--- add this line to fully reset timer
-
-    # Clean up image references
+        
+        # Clean up image references
         self.original_image = None
         self.blurred_image = None
         self.current_display_image = None
-
+        
         self.image_file = None
         self.paused = False
         self.make_start_screen()
         self.game_logic = GameLogic(self)
-
     
     def update_powerup_buttons(self):
         """Update the state and appearance of powerup buttons"""
@@ -465,17 +464,16 @@ class GameUI:
             print(f"Error applying dynamic blur: {e}")
     
     def set_timer_difficulty(self):
+        """Set timer duration based on difficulty"""
         difficulty_value = self.difficulty.get()
         if difficulty_value == "Easy":
-           self.time_left = 90
+            self.time_left = 90  # 1:30
         elif difficulty_value == "Medium":
-             self.time_left = 60
-        else:
-          self.time_left = 30
-
-        print(f"[DEBUG] Time set to {self.time_left} seconds for {difficulty_value} difficulty")
+            self.time_left = 60  # 1:00
+        else:  # Hard
+            self.time_left = 30  # 0:30
+        
         self.update_timer_display()
-
     
     def update_timer_display(self):
         """Update the timer display"""
@@ -496,16 +494,10 @@ class GameUI:
     def start_timer(self):
         """Start the timer"""
         if self.paused:
-          return
-
-        if self.time_left <= 0:
-          print("[WARNING] Tried to start timer with 0 seconds.")
-          return
-
+            return
+            
         self.timer_running = True
         self.tick_timer()
-
-
     
     def stop_timer(self):
         """Stop the timer"""
@@ -536,7 +528,7 @@ class GameUI:
                     self.game_logic.chameleon_x - self.game_logic.click_radius, 
                     self.game_logic.chameleon_y - self.game_logic.click_radius,
                     self.game_logic.chameleon_x + self.game_logic.click_radius, 
-                    self.game_logic.chameleon_y + self.click_radius,
+                    self.game_logic.chameleon_y + self.game_logic.click_radius,
                     outline="red", width=3
                 )
                 self.show_message("Time's up! The chameleon was here!", False)
@@ -561,16 +553,14 @@ class GameUI:
 
     def replay(self):
         """Restart the game with the same image"""
-    # Cancel any running timer
-        if  self.timer_id:
+        # Cancel any running timer
+        if self.timer_id:
             self.window.after_cancel(self.timer_id)
             self.timer_id = None
         self.timer_running = False
         self.paused = False
-
-    # Safeguard: reset time_left to avoid triggering end screen immediately
-        self.set_timer_difficulty()  
-    # Start a new game
+        
+        # Start a new game
         self.start_game()
 
 
