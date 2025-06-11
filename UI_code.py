@@ -8,6 +8,7 @@ pygame.mixer.init()
 class GameUI:
     def __init__(self, window):
         self.sound_on = True 
+        self.success_sound = pygame.mixer.Sound("sounds/success.wav")
         self.click_sound = pygame.mixer.Sound("sounds/click.wav")
         self.win_sound = pygame.mixer.Sound("sounds/win.wav")
         self.gameover_sound = pygame.mixer.Sound("sounds/gameover.wav")

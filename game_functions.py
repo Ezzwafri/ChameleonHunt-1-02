@@ -346,6 +346,8 @@ class GameLogic:
                 if not self.found_chameleons[i]:
                     self.found_chameleons[i] = True
                     self.highlight_chameleon(i)
+                    if self.sound_on:
+                      self.game_ui.success_sound.play()
                     chameleon_found = True
                     
                     # Check if all chameleons are found
