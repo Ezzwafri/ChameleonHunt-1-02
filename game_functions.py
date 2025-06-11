@@ -5,6 +5,7 @@ from PIL import ImageEnhance, Image, ImageFilter, ImageStat,ImageTk
 
 class GameLogic:
     def __init__(self, game_ui):
+        self.sound_on=True
         self.game_ui = game_ui
         self.chameleon_positions = []  # Stores positions of chameleons on the image
         self.found_chameleons = []  # Tracks which chameleons have been found
@@ -328,11 +329,15 @@ class GameLogic:
             total_count = len(self.found_chameleons)
             self.game_ui.show_message(f"Game Over! You found {found_count} out of {total_count} chameleons.", False)
             self.highlight_chameleons_red()
+            if self.sound_on:
+              self.game_ui.gameover_sound.play()
             return
 
         self.click_count += 1
         x, y = event.x, event.y
         self.last_click_pos = (x, y)
+        if self.sound_on:
+          self.game_ui.click_sound.play()
 
         # Check if click is on any chameleon
         chameleon_found = False
@@ -345,6 +350,8 @@ class GameLogic:
                     
                     # Check if all chameleons are found
                     if all(self.found_chameleons):
+                        if self.sound_on:
+                          self.game_ui.win_sound.play()
                         self.found = True
                         clicks_used = self.click_count
                         efficiency = round((len(self.found_chameleons) / clicks_used) * 100)

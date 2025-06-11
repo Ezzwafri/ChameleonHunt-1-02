@@ -1,11 +1,16 @@
+import pygame
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk, ImageFilter, ImageDraw
 from game_functions import GameLogic
-
+pygame.mixer.init()
 
 class GameUI:
     def __init__(self, window):
+        self.sound_on = True 
+        self.click_sound = pygame.mixer.Sound("sounds/click.wav")
+        self.win_sound = pygame.mixer.Sound("sounds/win.wav")
+        self.gameover_sound = pygame.mixer.Sound("sounds/gameover.wav")
         self.window = window
         self.window.title("Chameleon Hunt")
         self.window.geometry("800x600") 
@@ -162,6 +167,21 @@ class GameUI:
         # Create feedback label
         self.feedback = tk.Label(self.frame, text="", font=("Arial", 16), bg="#ADD8E6", fg="#FF0000")
         self.feedback.pack(pady=15)
+        
+        # Sound toggle button (top-right corner)
+        self.sound_btn = tk.Button(
+        self.frame,
+        text="🔊 Sound On",  # Initial label
+        command=self.toggle_sound,
+        bg="#32CD32",        # Green = sound on
+        fg="white",
+        font=("Arial", 14, "bold"),
+        relief="raised",
+        bd=3,
+        padx=10,
+        pady=5
+         )
+        self.sound_btn.place(relx=0.99, rely=0.02, anchor="ne")  # Top-right corner
 
     def animate_button(self, button, color, shrink=False):
         """Animate button hover effect"""
@@ -348,6 +368,13 @@ class GameUI:
         replay_btn.pack(side="left", padx=5)
         replay_btn.bind("<Enter>", lambda e: replay_btn.config(bg="#FFD700"))
         replay_btn.bind("<Leave>", lambda e: replay_btn.config(bg="#FFFF00"))
+    
+    def toggle_sound(self):
+        self.sound_on = not self.sound_on
+        if self.sound_on:
+           self.sound_btn.config(text="🔊 Sound On", bg="#32CD32")
+        else:
+           self.sound_btn.config(text="🔇 Sound Off", bg="#A9A9A9")
     
     def toggle_pause(self):
         """Toggle game pause state"""
@@ -539,6 +566,8 @@ class GameUI:
                   self.show_message("Time's up! You missed some chameleons!", False)
                   self.game_logic.found = True
 
+             if self.sound_on:
+                 self.gameover_sound.play()
              messagebox.showinfo("Time's Up!", "Time's up! Game over.")
 
 
