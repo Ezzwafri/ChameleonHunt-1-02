@@ -15,6 +15,7 @@ class GameLogic:
         self.chameleon_image = None  # Base image of the chameleon
         self.chameleon_width = 0
         self.chameleon_height = 0
+        self.story_mode = False
         self.original_image = None  # User-uploaded original image
         self.game_image_with_chameleons = None  # Composite image with chameleon(s) blended in
         self.difficulty_settings = {  # Settings per difficulty level
@@ -99,6 +100,13 @@ class GameLogic:
             # Update powerup buttons
             if hasattr(self.game_ui, 'update_powerup_buttons'):
                 self.game_ui.update_powerup_buttons()
+            
+            # Adjust difficulty parameters depending on mode
+            if self.story_mode:
+                # Use difficulty from current story level
+                difficulty = self.ui.current_story_difficulty
+            else:
+                difficulty = self.ui.difficulty.get()
             # Adjust difficulty
             difficulty = self.game_ui.difficulty.get()
             if difficulty == "Easy":
