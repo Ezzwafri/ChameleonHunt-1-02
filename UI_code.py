@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk, ImageFilter, ImageDraw
 from game_functions import GameLogic
+from StoryImages_Class import StoryImages
 pygame.mixer.init()
 
 class GameUI:
@@ -717,16 +718,16 @@ class GameUI:
           if not hasattr(self, 'initial_clear_radius'):
              self.initial_clear_radius = self.clear_radius
 
-           if self.game_logic.story_mode:
+             if self.game_logic.story_mode:
               difficulty_value = self.current_story_difficulty
-           else:
+             else:
               difficulty_value = self.difficulty.get()
             
-           if difficulty_value == "Easy":
+             if difficulty_value == "Easy":
               total_time = 90
-           elif difficulty_value == "Medium":
+             elif difficulty_value == "Medium":
               total_time = 60
-           else:
+             else:
               total_time = 30
 
           ratio = max(self.time_left / self.total_time, 0)
