@@ -1,8 +1,3 @@
-import tkinter as tk
-from tkinter import filedialog, messagebox
-from PIL import Image, ImageTk, ImageFilter, ImageDraw
-import random
-
 class StoryImages:
     """Class to handle story mode images"""
     def __init__(self):
