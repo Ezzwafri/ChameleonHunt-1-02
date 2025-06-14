@@ -15,7 +15,9 @@ class GameUI:
         self.gameover_sound = pygame.mixer.Sound("sounds/gameover.wav")
         self.window = window
         self.window.title("Chameleon Hunt")
-        self.window.geometry("800x600") 
+        self.window.geometry("900x765") 
+        self.window.resizable(True, True)  
+        self.window.minsize(800, 600)
         self.image_file = None
         self.difficulty = tk.StringVar(value="Medium")
         self.bg_label = None
@@ -101,7 +103,7 @@ class GameUI:
                 try:
                     widget.destroy()
                 except tk.TclError:
-                    pass  # Widget already destroyed
+                    continue
                 
         # Title frame 
         title_frame = tk.Frame(self.frame, bg="#ADD8E6")
@@ -206,7 +208,14 @@ class GameUI:
         pady=5
          )
         self.sound_btn.place(relx=0.99, rely=0.02, anchor="ne")  # Top-right corner
-
+    def safe_update_widget(self, widget, **kwargs):
+         """Safely update widget properties if the widget exists"""
+         if widget and widget.winfo_exists():
+           try:
+              widget.config(**kwargs)
+           except tk.TclError:
+                pass
+    
     def start_story_mode(self):
         """Start the story mode"""
         self.show_story_intro()
@@ -263,25 +272,41 @@ class GameUI:
         """Start the current story level"""
         level = self.story_images.get_current_level()
 
-        # Set story mode flag
-        self.game_logic.story_mode = True
-    
-        # Store current story difficulty for the game logic
+        # Set story mode flag and difficulty
+        if hasattr(self, 'game_logic'):
+           self.game_logic.story_mode = True
         self.current_story_difficulty = level['difficulty']
+        self.image_file = level['image_data']  # Set the image file path
 
-        # Try to open the story image file
         try:
-            self.original_image = Image.open(level['image_data'])
-            print(f"Successfully loaded {level['image_data']}")
-        except Exception as e:
-            # If the image file doesn't exist, create a placeholder image
-            print(f"Warning: Could not load {level['image_data']}: {e}")
-            print("Creating placeholder image...")
+           # Try to open the story image file
+           self.original_image = Image.open(level['image_data'])
+           print(f"Successfully loaded {level['image_data']}")
         
-            self.original_image = self.create_placeholder_image(level)
-
-        # Start the game with this image
-        self.start_game_with_image()
+           # Create or reset game logic with the new image
+           if not hasattr(self, 'game_logic') or self.game_logic is None:
+               self.game_logic = GameLogic(self)
+        
+           # Ensure the game logic has access to the loaded image
+           self.game_logic.story_mode = True
+        
+           # Start the game with this image
+           self.start_game_with_image()
+    
+        except Exception as e:
+           print(f"Error loading image: {e}")
+           # Create a placeholder image if loading fails
+           placeholder_color = level['placeholder_color']
+           self.original_image = Image.new('RGB', (800, 600), placeholder_color)
+           draw = ImageDraw.Draw(self.original_image)
+           draw.text((400, 300), f"Could not load {level['image_data']}", fill="white", anchor="mm")
+    
+           # Create or reset game logic with placeholder image
+           if not hasattr(self, 'game_logic') or self.game_logic is None:
+              self.game_logic = GameLogic(self)
+        
+           self.game_logic.story_mode = True
+           self.start_game_with_image()
 
     def start_game_with_image(self):
         """Start game with the loaded image"""
@@ -291,8 +316,9 @@ class GameUI:
                 try:
                     widget.destroy()
                 except tk.TclError:
-                    pass
-
+                    continue
+        # Wait a moment to ensure all widgets are destroyed
+        self.window.update_idletasks()
         # Create new canvas and feedback label
         self.game_canvas = tk.Canvas(self.frame, bg="white", highlightthickness=2, highlightbackground="#00CED1")
         self.game_canvas.pack(fill="both", expand=True)
@@ -318,37 +344,51 @@ class GameUI:
 
         # Process the image
         try:
+            # Ensure we have an original image
+            if not hasattr(self, 'original_image') or self.original_image is None:
+                raise ValueError("No original image loaded")
+        
             # Resize image if needed
             self.original_image.thumbnail((800, 600))
 
-            # Create blurred version
-            self.blurred_image = self.original_image.filter(ImageFilter.GaussianBlur(self.blur_level))
+            # Process the image in game logic FIRST - this sets up chameleons
+            self.game_logic.img_width, self.game_logic.img_height = self.original_image.size
+        
+            # Reset game state for new round - this will place chameleons
+            success = self.game_logic.reset_game()
+            if not success:
+                raise ValueError("Failed to reset game")
+
+            # Create blurred version - use the image WITH chameleons for story mode
+            if self.game_logic.story_mode:
+                # For story mode, blur the image WITH chameleons
+                self.blurred_image = self.game_logic.game_image_with_chameleons.filter(ImageFilter.GaussianBlur(self.blur_level))
+            else:
+                # For normal mode, keep original behavior (blur without chameleons)
+                self.blurred_image = self.original_image.filter(ImageFilter.GaussianBlur(self.blur_level))
 
             # Set initial display as blurred
             self.current_display_image = self.blurred_image.copy()
             self.game_image = ImageTk.PhotoImage(self.current_display_image)
             self.image_on_canvas = self.game_canvas.create_image(0, 0, image=self.game_image, anchor="nw")
 
-            # Process the image in game logic
-            self.game_logic.img_width, self.game_logic.img_height = self.original_image.size
-
-            # Reset game state for new round
-            self.game_logic.reset_game()
-
             # Feedback
             if self.game_logic.story_mode:
-                level = self.story_images.get_current_level()
-                self.feedback.config(text=f"Find the chameleon in {level['name']}! Move mouse to reveal.", fg="#800080")
+               level = self.story_images.get_current_level()
+               self.feedback.config(text=f"Find the chameleon in {level['name']}! Move mouse to reveal.", fg="#800080")
             else:
-                self.feedback.config(text="Move your mouse to reveal parts of the image! Click to guess the chameleon location!", fg="#800080")
+               self.feedback.config(text="Move your mouse to reveal parts of the image! Click to guess the chameleon location!", fg="#800080")
 
             # Mouse event handlers
             self.game_canvas.bind("<Motion>", self.update_blur)
             self.game_canvas.bind("<Button-1>", self.game_logic.handle_click)
 
         except Exception as e:
-            messagebox.showerror("Error", f"Image didn't load: {e}")
-            self.make_start_screen()
+          print(f"Error in start_game_with_image: {e}")
+          messagebox.showerror("Error", f"Image didn't load: {e}")
+          self.make_start_screen()
+
+        
 
     def animate_button(self, button, color, shrink=False):
         """Animate button hover effect"""
@@ -610,10 +650,10 @@ class GameUI:
            difficulty_value = self.difficulty.get()
         if difficulty_value == "Easy":
             self.blur_level = 5
-            self.clear_radius = 150
+            self.clear_radius = 100
         elif difficulty_value == "Medium":
             self.blur_level = 8
-            self.clear_radius = 100
+            self.clear_radius = 75
         else:  # Hard
             self.blur_level = 12
             self.clear_radius = 50
@@ -631,34 +671,32 @@ class GameUI:
         self.apply_dynamic_blur(x, y)
     
     def apply_dynamic_blur(self, x, y):
-        """Apply dynamic blurring with a clear area around cursor position"""
-        if self.original_image is None or self.blurred_image is None:
-            return
+        
+       """Apply dynamic blurring with a clear area around cursor position"""
+       if not hasattr(self.game_logic, 'game_image_with_chameleons') or self.blurred_image is None:
+           return
+        
+       try:
+           self.current_display_image = self.blurred_image.copy()
+           mask = Image.new('L', self.blurred_image.size, 0)
+           draw = ImageDraw.Draw(mask)
+           draw.ellipse((x-self.clear_radius, y-self.clear_radius, 
+                     x+self.clear_radius, y+self.clear_radius), 
+                    fill=255)
+        
+           # Modified section - story mode vs normal mode:
+           if self.game_logic.story_mode:
+               # Story Mode: Reveal image WITH chameleons
+               self.current_display_image.paste(self.game_logic.game_image_with_chameleons, (0,0), mask)
+           else:
+               # Normal Mode: Original behavior (reveal without chameleons)
+               self.current_display_image.paste(self.original_image, (0,0), mask)
             
-        try:
-            # Create a copy of the blurred image
-            self.current_display_image = self.blurred_image.copy()
-            
-            # Create a blank mask the same size as our image
-            mask = Image.new('L', self.original_image.size, 0)
-            
-            # Draw a white circle at the cursor position
-            draw = ImageDraw.Draw(mask)
-            draw.ellipse(
-                (x - self.clear_radius, y - self.clear_radius, 
-                 x + self.clear_radius, y + self.clear_radius), 
-                fill=255
-            )
-            
-            # Paste the original image onto the blurred one using the mask
-            self.current_display_image.paste(self.original_image, (0, 0), mask)
-            
-            # Update the displayed image
-            self.game_image = ImageTk.PhotoImage(self.current_display_image)
-            self.game_canvas.itemconfig(self.image_on_canvas, image=self.game_image)
-            
-        except Exception as e:
-            print(f"Error applying dynamic blur: {e}")
+           self.game_image = ImageTk.PhotoImage(self.current_display_image)
+           self.game_canvas.itemconfig(self.image_on_canvas, image=self.game_image)
+        
+       except Exception as e:
+           print(f"Error applying dynamic blur: {e}")
     
     def set_timer_difficulty(self):
         """Set timer duration based on difficulty"""
@@ -677,20 +715,23 @@ class GameUI:
         self.update_timer_display()
     
     def update_timer_display(self):
-        """Update the timer display"""
-        minutes = self.time_left // 60
-        seconds = self.time_left % 60
-        time_string = f"Time: {minutes}:{seconds:02d}"
+         """Update the timer display with safety checks"""
+         if not hasattr(self, 'timer_display') or not self.timer_display.winfo_exists():
+            return
         
-        # Change color based on time left
-        if self.time_left > 20:
-            color = "#32CD32"  # Green
-        elif self.time_left > 10:
-            color = "#FFA500"  # Orange
-        else:
-            color = "#FF0000"  # Red
-        
-        self.timer_display.config(text=time_string, fg=color)
+         minutes = self.time_left // 60
+         seconds = self.time_left % 60
+         time_string = f"Time: {minutes}:{seconds:02d}"
+    
+         # Change color based on time left
+         if self.time_left > 20:
+             color = "#32CD32"  # Green
+         elif self.time_left > 10:
+             color = "#FFA500"  # Orange
+         else:
+             color = "#FF0000"  # Red
+    
+         self.safe_update_widget(self.timer_display, text=time_string, fg=color)
     
     def start_timer(self):
         """Start the timer"""
@@ -742,18 +783,25 @@ class GameUI:
              self.timer_running = False
              self.timer_display.config(text="Time's Up!", fg="#FF0000")
 
+             
+
              if not self.game_logic.found:
-               if self.original_image:
-                  self.game_image = ImageTk.PhotoImage(self.original_image)
-                  self.game_canvas.itemconfig(self.image_on_canvas, image=self.game_image)
-
-                  self.game_logic.highlight_chameleons_red()
-                  self.show_message("Time's up! You missed some chameleons!", False)
-                  self.game_logic.found = True
-
-             if self.sound_on:
-                 self.gameover_sound.play()
-             messagebox.showinfo("Time's Up!", "Time's up! Game over.")
+                 if self.original_image:
+                    # Show unblurred image
+                    self.game_image = ImageTk.PhotoImage(self.game_logic.game_image_with_chameleons)
+                    self.game_canvas.itemconfig(self.image_on_canvas, image=self.game_image)
+                
+                    # Story mode handling
+                    if self.game_logic.story_mode:
+                        self.game_logic.highlight_chameleons_red()
+                        if self.sound_on:
+                           self.gameover_sound.play()
+                        self.show_story_failure()
+                    else:
+                      self.game_logic.highlight_chameleons_red()
+                      self.show_message("Time's up! You missed some chameleons!", False)
+                      if self.sound_on:
+                         self.gameover_sound.play()
 
     def show_story_success(self):
         level = self.story_images.get_current_level()
@@ -776,16 +824,37 @@ class GameUI:
         level_num = self.story_images.current_level + 1
         
         failure_messages = {
-            1: f"The Color Ghost slipped away in {level['name']}.\nFirst expeditions are always challenging.",
-            2: f"Lost the trail in {level['name']}.\nThe Color Ghost has learned from your first encounter.",
-            3: f"Missed again in {level['name']}!\nIts camouflage adaptation is accelerating.",
-            4: f"So close in {level['name']}, yet it vanished.\nThe Color Ghost is testing your dedication.",
-            5: f"The Color Ghost remains hidden in {level['name']}.\nPatience is key to earning trust."
+            1: f"The Color Ghost slipped away .\nFirst expeditions are always challenging.",
+            2: f"Lost the trail.\nThe Color Ghost has learned from your first encounter.",
+            3: f"Missed again!\nIts camouflage adaptation is accelerating.",
+            4: f"So close!, yet it vanished.\nThe Color Ghost is testing your dedication.",
+            5: f"The Color Ghost remains hidden.\nPatience is key to earning trust."
         }
         
-        message = failure_messages.get(level_num, f"The Color Ghost escaped in {level['name']}!")
-        self.show_message(message, False)
-        self.window.after(2500, self.show_story_retry)
+        message = failure_messages.get(level_num, f"The Color Ghost escaped!")
+        # Clear any existing messages
+        self.feedback.config(text="")
+         # Create failure overlay
+        overlay = tk.Canvas(self.game_canvas, bg="black", highlightthickness=0)
+        overlay.place(relx=0.5, rely=0.5, anchor="center", width=self.game_canvas.winfo_width(), height=self.game_canvas.winfo_height())
+        overlay.create_rectangle(0, 0, self.game_canvas.winfo_width(), self.game_canvas.winfo_height(), fill="black", stipple="gray50", outline="")
+    
+        # Add failure text
+        overlay.create_text(self.game_canvas.winfo_width()//2, 
+                       self.game_canvas.winfo_height()//2 - 50,
+                       text="EXPEDITION FAILED",
+                       font=("Arial", 24, "bold"),
+                       fill="white")
+    
+        overlay.create_text(self.game_canvas.winfo_width()//2,
+                       self.game_canvas.winfo_height()//2,
+                       text=message,
+                       font=("Arial", 14),
+                       fill="white",
+                       width=self.game_canvas.winfo_width()-40)
+    
+        # Schedule the retry menu to appear
+        self.window.after(2500, lambda: self.show_story_retry(overlay))
 
     def show_story_completion(self):
         # Destroy existing button frame if it exists
@@ -819,12 +888,17 @@ class GameUI:
         retry_btn.pack(side=tk.LEFT, padx=10)
 
         menu_btn = tk.Button(self.current_button_frame, text="Main Menu",
-                        command=self.return_to_menu,
+                        command=self.return_to_main_menu,
                         bg="#9370DB", fg="white",
                         font=("Arial", 14, "bold"))
         menu_btn.pack(side=tk.LEFT, padx=10)
 
-    def show_story_retry(self):
+    def show_story_retry(self,overlay=None):
+        if overlay:
+            try:
+               overlay.destroy()
+            except:
+              pass
         # Destroy existing button frame if it exists
         if self.current_button_frame:
             try:
@@ -834,19 +908,19 @@ class GameUI:
     
         # Create new button frame
         self.current_button_frame = tk.Frame(self.frame, bg="#ADD8E6")
-        self.current_button_frame.pack(pady=10)
-
+        self.current_button_frame.place(relx=0.5, rely=0.8, anchor="center")
+    
         retry_btn = tk.Button(self.current_button_frame, text="Try Again",
-                              command=self.retry_story_level,
-                              bg="#FF6347", fg="white",
-                              font=("Arial", 14, "bold"))
-        retry_btn.pack(side=tk.LEFT, padx=10)
-
+                         command=self.retry_story_level,
+                         bg="#FF6347", fg="white",
+                         font=("Arial", 14, "bold"))
+        retry_btn.pack(side=tk.LEFT, padx=10, ipadx=20, ipady=5)
+    
         menu_btn = tk.Button(self.current_button_frame, text="Main Menu",
-                        command=self.return_to_menu,
+                        command=self.return_to_main_menu,
                         bg="#9370DB", fg="white",
                         font=("Arial", 14, "bold"))
-        menu_btn.pack(side=tk.LEFT, padx=10)
+        menu_btn.pack(side=tk.LEFT, padx=10, ipadx=20, ipady=5)
 
     def next_story_level(self):
         self.story_images.next_level()
@@ -910,7 +984,7 @@ class GameUI:
 
         # Menu button
         menu_btn = tk.Button(button_frame, text="Main Menu",
-                            command=self.return_to_menu,
+                            command=self.return_to_main_menu,
                             bg="#8B4513", fg="white",
                             font=("Arial", 14, "bold"))
         menu_btn.pack(side=tk.LEFT, padx=15, ipadx=15, ipady=8)
@@ -980,7 +1054,7 @@ class GameUI:
 
         # Back to menu button
         back_btn = tk.Button(button_frame, text="Back to Menu",
-                            command=self.return_to_menu,
+                            command=self.return_to_main_menu,
                             bg="#8B4513", fg="white",
                             font=("Arial", 16, "bold"))
         back_btn.pack(side=tk.LEFT, padx=15, ipadx=20, ipady=10)
@@ -1061,7 +1135,7 @@ class GameUI:
 
         # Back button
         back_btn = tk.Button(button_frame, text="Back to Menu",
-                            command=self.return_to_menu,
+                            command=self.return_to_main_menu,
                             bg="#8B4513", fg="white",
                             font=("Arial", 16, "bold"))
         back_btn.pack(side=tk.LEFT, padx=10, ipadx=20, ipady=10)
@@ -1089,11 +1163,11 @@ class GameUI:
 
     def show_message(self, msg, success):
         """Show a message in the feedback label"""
-        if hasattr(self, 'feedback') and self.feedback and self.feedback.winfo_exists():
-            if success:
-                self.feedback.config(text=msg, fg="#008000")
-            else:
-                self.feedback.config(text=msg, fg="#FF0000")
+        if hasattr(self, 'feedback'):
+           if success:
+            self.safe_update_widget(self.feedback, text=msg, fg="#008000")
+           else:
+            self.safe_update_widget(self.feedback, text=msg, fg="#FF0000")
 
     def replay(self):
         """Restart the game with the same image"""
