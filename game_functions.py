@@ -18,6 +18,9 @@ class GameLogic:
         self.story_mode = False
         self.original_image = None  # User-uploaded original image
         self.game_image_with_chameleons = None  # Composite image with chameleon(s) blended in
+        self.points = 0
+        self.add_time_uses = 1  # Changed from 0 to give players initial powerups
+        self.add_steps_uses = 1
         self.difficulty_settings = {  # Settings per difficulty level
             "Easy": {
                 "size_factor": 0.15, 
@@ -405,7 +408,7 @@ class GameLogic:
         else:
             return "🧊 FREEZING! No chameleons hiding anywhere near here."
 
-    def handle_click(self, event):
+    def handle_click(self, event,):
         # Process a click event: check if chameleon is found or give feedback
         if self.click_count >= self.max_clicks:
            found_count = sum(self.found_chameleons)
@@ -440,6 +443,8 @@ class GameLogic:
                    if self.game_ui.sound_on:
                        self.game_ui.success_sound.play()
                    chameleon_found = True
+                   self.game_ui.points += 20  # Base points for finding a chameleon
+                   self.game_ui.update_points_display()
                 
                     # Check if all chameleons are found
                    if all(self.found_chameleons):
@@ -475,6 +480,10 @@ class GameLogic:
     # Handle misses
         if not chameleon_found:
           dist = self.calculate_distance(x, y)
+          points_earned = self.award_points(dist)
+          if points_earned > 0:
+             self.game_ui.points += points_earned
+             self.game_ui.update_points_display()
           msg = self.get_feedback(dist)
           clicks_left = self.max_clicks - self.click_count
           self.game_ui.show_message(f"{msg} Clicks left: {clicks_left}", True)
@@ -575,16 +584,45 @@ class GameLogic:
         )
         
     def use_add_time(self):
-        if self.add_time_uses > 0:
-            self.add_time_uses -= 1
-            self.game_ui.time_left += 15
-            self.game_ui.update_timer_display()
-            self.game_ui.update_powerup_buttons()
-            self.game_ui.show_message_in_game("+15 seconds added!")
-            
+       if self.add_time_uses <= 0 or self.found or not self.game_ui.timer_running:
+           return
+       self.add_time_uses -= 1
+       difficulty = self.game_ui.difficulty.get() if not self.story_mode else self.game_ui.current_story_difficulty
+       time_to_add = 15 if difficulty == "Easy" else 10 if difficulty == "Medium" else 5
+       self.game_ui.time_left += time_to_add
+       self.game_ui.update_timer_display()
+       self.game_ui.show_message_in_game(f"+ {time_to_add} seconds")
+       self.game_ui.update_points_display()
+       self.game_ui.update_powerup_buttons()
+    
     def use_add_steps(self):
-        if self.add_steps_uses > 0:
-            self.add_steps_uses -= 1
-            self.max_clicks += 5
-            self.game_ui.update_powerup_buttons()
-            self.game_ui.show_message_in_game("+5 clicks added!")
+       if self.add_steps_uses <= 0 or self.found:
+           return
+       self.add_steps_uses -= 1
+       difficulty = self.game_ui.difficulty.get() if not self.story_mode else self.game_ui.current_story_difficulty
+       steps_to_add = 2 if difficulty == "Easy" else 1
+       self.max_clicks += steps_to_add
+       self.game_ui.show_message_in_game(f"+ {steps_to_add} steps")
+       self.game_ui.update_points_display()
+       self.game_ui.update_powerup_buttons()
+       
+    def award_points(self, distance):
+         """Award points based on how close the click was to a chameleon"""
+         if not self.chameleon_positions:
+          return 0
+    
+        # Use the average size of chameleons as reference
+         ref = 0
+         for x1, y1, x2, y2 in self.chameleon_positions:
+             ref += max(x2 - x1, y2 - y1)
+         ref = ref / len(self.chameleon_positions) / 2
+    
+         if distance < ref / 2:
+             return 20  # Max points for very close
+         elif distance < ref:
+             return 15
+         elif distance < ref * 2:
+             return 10
+         elif distance < ref * 4:
+             return 5
+         return 0  # Too far away
