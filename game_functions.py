@@ -625,4 +625,4 @@ class GameLogic:
              return 10
          elif distance < ref * 4:
              return 5
-         return 0  # Too far away
+         return 0  
