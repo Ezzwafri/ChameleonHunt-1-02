@@ -70,58 +70,134 @@ class GameLogic:
             print(f"Error: chameleon_silhouette.png not found. {e}")
             
     def reset_game(self):
-        try:
-            self.original_image = Image.open(self.game_ui.image_file)
-            self.original_image.thumbnail((800, 500))
-            self.img_width, self.img_height = self.original_image.size
-            difficulty = self.game_ui.difficulty.get()
-            settings = self.difficulty_settings[difficulty]
-            self.click_count = 0
-            self.chameleon_positions = []
-            self.found_chameleons = []
-            self.found = False
-            self.last_click_pos = None
-            self.heatmap_indicators = []
-            
-            # Adjust max clicks based on difficulty
-            self.max_clicks = 10 + settings["num_chameleons"]
-            
-            # Reset powerup uses
-            self.add_time_uses = 1
-            self.add_steps_uses = 1
-            
-            # Place chameleons strategically
-            self.game_image_with_chameleons = self.place_chameleons_smartly(settings)
-            
-            self.game_ui.game_image = ImageTk.PhotoImage(self.game_image_with_chameleons)
-            self.game_ui.game_canvas.create_image(0, 0, image=self.game_ui.game_image, anchor="nw")
-            self.game_ui.show_message(f"Find {len(self.chameleon_positions)} chameleon{'s' if len(self.chameleon_positions) > 1 else ''}! Clicks left: {self.max_clicks}", False)
-            
-            # Update powerup buttons
-            if hasattr(self.game_ui, 'update_powerup_buttons'):
-                self.game_ui.update_powerup_buttons()
-            
-            # Adjust difficulty parameters depending on mode
-            if self.story_mode:
-                # Use difficulty from current story level
-                difficulty = self.game_ui.current_story_difficulty
-            else:
-                difficulty = self.game_ui.difficulty.get()
-            # Adjust difficulty
-            difficulty = self.game_ui.difficulty.get()
-            if difficulty == "Easy":
-                self.click_radius = 50
-                self.max_attempts = 8
-            elif difficulty == "Medium":
-                self.click_radius = 30
-                self.max_attempts = 5
-            else:  # Hard
-                self.click_radius = 15
-                self.max_attempts = 3
+       try:
+           print("DEBUG: Starting reset_game()")
+           print(f"DEBUG: Story mode: {self.story_mode}")
         
-        except Exception as e:
-         print(f"Error resetting game: {e}")
-         self.game_ui.show_message("Error loading image. Please try again with a different image.", False)
+           # Handle image loading differently for story mode
+           if self.story_mode:
+               print("DEBUG: Loading image in story mode")
+               # For story mode, use the image already loaded in game_ui
+               if hasattr(self.game_ui, 'original_image') and self.game_ui.original_image is not None:
+                   self.original_image = self.game_ui.original_image
+                   print("DEBUG: Using game_ui.original_image")
+               else:
+                   print("DEBUG: game_ui.original_image not available, trying image_file")
+                   if hasattr(self.game_ui, 'image_file') and self.game_ui.image_file is not None:
+                       self.original_image = Image.open(self.game_ui.image_file)
+                       print(f"DEBUG: Loaded from image_file: {self.game_ui.image_file}")
+                   else:
+                       raise ValueError("No image available in story mode")
+           else:
+               print("DEBUG: Loading image in normal mode")
+               # For normal mode, load from uploaded file
+               if hasattr(self.game_ui, 'image_file') and self.game_ui.image_file is not None:
+                   self.original_image = Image.open(self.game_ui.image_file)
+                   print(f"DEBUG: Loaded from image_file: {self.game_ui.image_file}")
+               else:
+                   raise ValueError("No image file available")
+        
+           if self.original_image is None:
+               raise ValueError("Image is None after loading")
+        
+           print(f"DEBUG: Image loaded, size: {self.original_image.size}")
+        
+           # Resize the image
+           self.original_image.thumbnail((800, 600))
+           self.img_width, self.img_height = self.original_image.size
+           print(f"DEBUG: Image resized to: {self.img_width}x{self.img_height}")
+    
+           # Get difficulty settings
+           if self.story_mode:
+              difficulty = self.game_ui.current_story_difficulty
+           else:
+              difficulty = self.game_ui.difficulty.get()
+        
+           print(f"DEBUG: Difficulty: {difficulty}")
+        
+           if not hasattr(self, 'difficulty_settings') or difficulty not in self.difficulty_settings:
+               print(f"DEBUG: Invalid difficulty or missing settings: {difficulty}")
+               raise ValueError(f"Invalid difficulty settings for: {difficulty}")
+        
+           settings = self.difficulty_settings[difficulty]
+           print(f"DEBUG: Using settings: {settings}")
+    
+           # Reset game state
+           self.click_count = 0
+           self.chameleon_positions = []
+           self.found_chameleons = []
+           self.found = False
+           self.last_click_pos = None
+           self.heatmap_indicators = []
+    
+           # Adjust max clicks based on difficulty
+           self.max_clicks = 10 + settings["num_chameleons"]
+           print(f"DEBUG: Max clicks set to: {self.max_clicks}")
+    
+           # Reset powerup uses
+           self.add_time_uses = 1
+           self.add_steps_uses = 1
+        
+           # Check if chameleon image exists
+           if not hasattr(self, 'chameleon_image') or self.chameleon_image is None:
+               print("DEBUG: chameleon_image not loaded")
+               raise ValueError("Chameleon image not loaded")
+        
+           print("DEBUG: About to place chameleons")
+    
+           # Place chameleons strategically
+           self.game_image_with_chameleons = self.place_chameleons_smartly(settings)
+        
+           if self.game_image_with_chameleons is None:
+               raise ValueError("Failed to place chameleons - returned None")
+        
+           print("DEBUG: Chameleons placed successfully")
+        
+           # Update UI elements
+           try:
+               self.game_ui.game_image = ImageTk.PhotoImage(self.game_image_with_chameleons)
+               self.game_ui.game_canvas.create_image(0, 0, image=self.game_ui.game_image, anchor="nw")
+               self.game_ui.show_message(f"Find {len(self.chameleon_positions)} chameleon{'s' if len(self.chameleon_positions) > 1 else ''}! Clicks left: {self.max_clicks}", False)
+           except Exception as ui_error:
+               print(f"DEBUG: UI update error: {ui_error}")
+               # Continue even if UI update fails
+    
+           # Update powerup buttons
+           if hasattr(self.game_ui, 'update_powerup_buttons'):
+             try:
+                 self.game_ui.update_powerup_buttons()
+             except Exception as powerup_error:
+                 print(f"DEBUG: Powerup button update error: {powerup_error}")
+    
+           # Adjust difficulty parameters
+           if difficulty == "Easy":
+            self.click_radius = 50
+            self.max_attempts = 8
+           elif difficulty == "Medium":
+            self.click_radius = 30
+            self.max_attempts = 5
+           else:  # Hard
+            self.click_radius = 15
+            self.max_attempts = 3
+        
+           print("DEBUG: reset_game completed successfully")
+           return True
+        
+       except Exception as e:
+           print(f"ERROR in reset_game: {e}")
+           import traceback
+           traceback.print_exc()
+        
+           # Show error message to user
+           try:
+               if hasattr(self.game_ui, 'show_message'):
+                self.game_ui.show_message(f"Error: {str(e)}", True)
+           except:
+               pass  # Don't let UI errors prevent error reporting
+            
+           return False
+            
+        
 
     def get_average_color(self, image, x, y, width, height):
         # Crop a region and return the average color for blending
@@ -332,13 +408,21 @@ class GameLogic:
     def handle_click(self, event):
         # Process a click event: check if chameleon is found or give feedback
         if self.click_count >= self.max_clicks:
-            found_count = sum(self.found_chameleons)
-            total_count = len(self.found_chameleons)
-            self.game_ui.show_message(f"Game Over! You found {found_count} out of {total_count} chameleons.", False)
-            self.highlight_chameleons_red()
-            if self.game_ui.sound_on:
-              self.game_ui.gameover_sound.play()
-            return
+           found_count = sum(self.found_chameleons)
+           total_count = len(self.found_chameleons)
+           self.highlight_chameleons_red()
+        
+            # Story Mode failure handling
+           if self.story_mode:
+               self.game_ui.show_message(f"Expedition Failed! Found {found_count}/{total_count}", False)
+               if self.game_ui.sound_on:
+                   self.game_ui.gameover_sound.play()
+               self.game_ui.show_story_failure()
+           else:
+               self.game_ui.show_message(f"Game Over! Found {found_count}/{total_count}", False)
+               if self.game_ui.sound_on:
+                   self.game_ui.gameover_sound.play()
+           return
 
         self.click_count += 1
         x, y = event.x, event.y
@@ -351,78 +435,100 @@ class GameLogic:
         for i, (x1, y1, x2, y2) in enumerate(self.chameleon_positions):
             if x1 <= x <= x2 and y1 <= y <= y2:
                 if not self.found_chameleons[i]:
-                    self.found_chameleons[i] = True
-                    self.highlight_chameleon(i)
-                    if self.game_ui.sound_on:
-                      self.game_ui.success_sound.play()
-                    chameleon_found = True
-                    
+                   self.found_chameleons[i] = True
+                   self.highlight_chameleon(i)
+                   if self.game_ui.sound_on:
+                       self.game_ui.success_sound.play()
+                   chameleon_found = True
+                
                     # Check if all chameleons are found
-                    if all(self.found_chameleons):
-                        if self.game_ui.sound_on:
-                          self.game_ui.win_sound.play()
-                        self.found = True
-                        clicks_used = self.click_count
-                        efficiency = round((len(self.found_chameleons) / clicks_used) * 100)
-                        self.game_ui.show_message(f"You found all {len(self.found_chameleons)} chameleons in {clicks_used} clicks! Efficiency rating: {efficiency}%", True)
-                    else:
-                        remaining = sum(1 for found in self.found_chameleons if not found)
-                        found_so_far = sum(self.found_chameleons)
-                        clicks_left = self.max_clicks - self.click_count
-                        self.game_ui.show_message(f"You found chameleon #{found_so_far}! Still {remaining} hidden chameleons to find. {clicks_left} clicks remaining.", True)
-                    return
+                   if all(self.found_chameleons):
+                     if self.game_ui.sound_on:
+                        self.game_ui.win_sound.play()
+                     self.found = True
+                     clicks_used = self.click_count
+                     efficiency = round((len(self.found_chameleons) / clicks_used) * 100)
+                    
+                    # Story Mode success handling
+                     if self.story_mode:
+                        self.game_ui.show_story_success()
+                     else:
+                        self.game_ui.show_message(
+                            f"You found all {len(self.found_chameleons)} chameleons! "
+                            f"Efficiency: {efficiency}%", 
+                            True
+                        )
+                   else:
+                    remaining = sum(1 for found in self.found_chameleons if not found)
+                    found_so_far = sum(self.found_chameleons)
+                    clicks_left = self.max_clicks - self.click_count
+                    self.game_ui.show_message(
+                        f"Found {found_so_far}/{len(self.found_chameleons)}. "
+                        f"{remaining} left. Clicks left: {clicks_left}", 
+                        True
+                    )
+                   return
                 else:
-                    self.game_ui.show_message("You already spotted this chameleon! Try looking elsewhere.", True)
-                    return
-        
+                 self.game_ui.show_message("You already found this one! Keep searching.", True)
+                return
+    
+    # Handle misses
         if not chameleon_found:
-            dist = self.calculate_distance(x, y)
-            msg = self.get_feedback(dist)
-            clicks_left = self.max_clicks - self.click_count
-            self.game_ui.show_message(f"{msg} Clicks left: {clicks_left}", True)
-            self.show_heatmap_indicator(x, y, dist)
+          dist = self.calculate_distance(x, y)
+          msg = self.get_feedback(dist)
+          clicks_left = self.max_clicks - self.click_count
+          self.game_ui.show_message(f"{msg} Clicks left: {clicks_left}", True)
+          self.show_heatmap_indicator(x, y, dist)
         
            
 
     def show_heatmap_indicator(self, x, y, distance):
         """Show a visual indicator at click position based on distance to nearest chameleon"""
+        # Early return if no chameleons placed
+        if not self.chameleon_positions:
+          return
         # Calculate reference distance from average chameleon size
-        ref = 0
-        for x1, y1, x2, y2 in self.chameleon_positions:
-            ref += max(x2 - x1, y2 - y1)
-        ref = ref / len(self.chameleon_positions) / 2
+        try:
+            ref = 0
+            for x1, y1, x2, y2 in self.chameleon_positions:
+               ref += max(x2 - x1, y2 - y1)
+            ref = ref / len(self.chameleon_positions) / 2
         
         # Determine color based on distance
-        if distance < ref / 2:
-            color = "#ff0000"  # Red - very hot
-        elif distance < ref:
-            color = "#ff6600"  # Orange - warm
-        elif distance < ref * 2:
-            color = "#ffcc00"  # Yellow - getting warmer
-        elif distance < ref * 4:
-            color = "#00ccff"  # Light blue - cool
-        else:
-            color = "#0066ff"  # Blue - cold
+            if distance < ref / 2:
+              color = "#ff0000"  # Red - very hot
+            elif distance < ref:
+              color = "#ff6600"  # Orange - warm
+            elif distance < ref * 2:
+              color = "#ffcc00"  # Yellow - getting warmer
+            elif distance < ref * 4:
+              color = "#00ccff"  # Light blue - cool
+            else:
+              color = "#0066ff"  # Blue - cold
         
-        # Create a pulsing circle effect
-        size = 20
+             # Create a pulsing circle effect
+            size = 20
         
-        # Clean up old indicators
-        for indicator in self.heatmap_indicators:
-            try:
-                self.game_ui.game_canvas.delete(indicator)
-            except:
+            # Clean up old indicators
+            for indicator in self.heatmap_indicators:
+              try:
+                 self.game_ui.game_canvas.delete(indicator)
+              except:
                 pass
         
-        # Create new indicator
-        indicator = self.game_ui.game_canvas.create_oval(
+            # Create new indicator
+            indicator = self.game_ui.game_canvas.create_oval(
             x - size, y - size, x + size, y + size, 
             outline=color, width=2, fill="", tags="heatmap"
-        )
-        self.heatmap_indicators = [indicator]
+            )
+            self.heatmap_indicators = [indicator]
         
-        # Schedule the indicator to fade out
-        self.game_ui.window.after(2000, lambda: self.fade_indicator(indicator))
+            # Schedule the indicator to fade out
+            self.game_ui.window.after(2000, lambda: self.fade_indicator(indicator))
+        
+        except Exception as e:
+          print(f"Error in heatmap indicator: {e}")
+          return
     
     def fade_indicator(self, indicator):
         """Fade out the heatmap indicator gradually"""
