@@ -24,6 +24,8 @@ class GameUI:
         self.story_images = StoryImages()
         self.current_button_frame = None
         self.current_story_difficulty = "Easy"
+        self.points = 0
+        self.shop_visible = False
         
         # Timer variables
         self.timer_running = False
@@ -208,6 +210,67 @@ class GameUI:
         pady=5
          )
         self.sound_btn.place(relx=0.99, rely=0.02, anchor="ne")  # Top-right corner
+        
+    def toggle_shop_menu(self):
+         """Toggle the visibility of the shop menu"""
+         if self.shop_visible:
+             if hasattr(self, 'shop_frame'):
+                 self.shop_frame.destroy()
+             self.shop_visible = False
+         else:
+             self.shop_visible = True
+             self.shop_frame = tk.Frame(self.frame, bg="#ADD8E6", width=200)
+             # Use place() for precise control
+             self.shop_frame.place(x=0, y=0, relheight=1, width=200)
+             self.shop_frame.lift()  # Bring to front
+             tk.Label(self.shop_frame, text="Shop", font=("Arial", 14, "bold"), bg="#ADD8E6").pack(pady=5)
+             tk.Label(self.shop_frame, text=f"Points: {self.points}", font=("Arial", 12), bg="#ADD8E6").pack(pady=5)
+        
+             if self.points >= 20:
+                 buy_time_btn = tk.Button(self.shop_frame, text="Buy Add Time (20 pts)", 
+                                         command=lambda: self.buy_powerup("time"), 
+                                         bg="#32CD32", fg="black", font=("Arial", 10, "bold"))
+                 buy_time_btn.pack(pady=5)
+             else:
+                  tk.Label(self.shop_frame, text="Add Time (20 pts)\nInsufficient Points", 
+                        fg="red", bg="#ADD8E6").pack(pady=5)
+            
+             if self.points >= 15:
+                 buy_steps_btn = tk.Button(self.shop_frame, text="Buy Add Steps (15 pts)", 
+                                    command=lambda: self.buy_powerup("steps"), 
+                                    bg="#FF69B4", fg="black", font=("Arial", 10, "bold"))
+                 buy_steps_btn.pack(pady=5)
+             else:
+                 tk.Label(self.shop_frame, text="Add Steps (15 pts)\nInsufficient Points", 
+                        fg="red", bg="#ADD8E6").pack(pady=5)
+            
+             tk.Button(self.shop_frame, text="Close", command=self.toggle_shop_menu, 
+                     bg="#FFA500", fg="black", font=("Arial", 10)).pack(pady=5)
+        
+    def buy_powerup(self, powerup_type):
+        """Handle powerup purchases"""
+        if powerup_type == "time" and self.points >= 20:
+             self.points -= 20
+             self.game_logic.add_time_uses += 1
+             self.show_message("Purchased Add Time!", True)
+        elif powerup_type == "steps" and self.points >= 15:
+            self.points -= 15
+            self.game_logic.add_steps_uses += 1
+            self.show_message("Purchased Add Steps!", True)
+        else:
+           self.show_message("Not enough points!", False)
+           return
+    
+        self.update_points_display()
+        self.update_powerup_buttons()
+        self.toggle_shop_menu()
+
+    def update_points_display(self):
+        """Update the points display label"""
+        if hasattr(self, 'points_display'):
+           self.points_display.config(text=f"Points: {self.points}")
+    
+    
     def safe_update_widget(self, widget, **kwargs):
          """Safely update widget properties if the widget exists"""
          if widget and widget.winfo_exists():
@@ -441,6 +504,17 @@ class GameUI:
     # Add timer display
         self.timer_display = tk.Label(self.timer_frame, text="Time: 0:00", font=("Arial", 18, "bold"), bg="#ADD8E6", fg="#FF5733")
         self.timer_display.pack(padx=10)
+        
+    # Add points display
+        self.points_display = tk.Label(self.timer_frame, text=f"Points: {self.points}", 
+                              font=("Arial", 14), bg="#ADD8E6", fg="#0000FF")
+        self.points_display.pack(padx=10)
+
+    # Add shop button
+        shop_btn = tk.Button(self.frame, text="$", command=self.toggle_shop_menu, 
+                    bg="#FFD700", fg="black", font=("Arial", 24, "bold"), 
+                    relief="raised", width=2, height=1)
+        shop_btn.place(x=750, y=10)
     
     # Set difficulty-specific blur settings
         self.set_blur_difficulty()
@@ -507,33 +581,36 @@ class GameUI:
     
     def create_powerup_buttons(self):
         """Create powerup buttons based on available uses"""
-        if self.game_logic.add_time_uses > 0:
-            self.add_time_btn = tk.Button(
-                self.powerup_frame, 
-                text=f"Add Time ({self.game_logic.add_time_uses})", 
-                command=self.game_logic.use_add_time, 
-                bg="#32CD32", 
-                fg="black", 
-                font=("Arial", 12, "bold"), 
-                relief="raised"
-            )
-            self.add_time_btn.pack(side="left", padx=5)
-            self.add_time_btn.bind("<Enter>", lambda e: self.add_time_btn.config(bg="#228B22"))
-            self.add_time_btn.bind("<Leave>", lambda e: self.add_time_btn.config(bg="#32CD32"))
-        
-        if self.game_logic.add_steps_uses > 0:
-            self.add_steps_btn = tk.Button(
-                self.powerup_frame, 
-                text=f"Add Steps ({self.game_logic.add_steps_uses})", 
-                command=self.game_logic.use_add_steps, 
-                bg="#FF69B4", 
-                fg="black", 
-                font=("Arial", 12, "bold"), 
-                relief="raised"
-            )
-            self.add_steps_btn.pack(side="left", padx=5)
-            self.add_steps_btn.bind("<Enter>", lambda e: self.add_steps_btn.config(bg="#FF1493"))
-            self.add_steps_btn.bind("<Leave>", lambda e: self.add_steps_btn.config(bg="#FF69B4"))
+        self.top_left_message = tk.Label(self.frame, text="", 
+                                        font=("Arial", 14, "bold"), 
+                                        bg="#ADD8E6", fg="#800080")
+        self.top_left_message.place(x=10, y=10)
+    
+        self.add_time_btn = tk.Button(
+           self.powerup_frame, 
+           text=f"Add Time ({self.game_logic.add_time_uses})", 
+           command=self.game_logic.use_add_time, 
+           bg="#32CD32", 
+           fg="black", 
+           font=("Arial", 12, "bold"), 
+           relief="raised"
+        )
+        self.add_time_btn.pack(side="left", padx=5)
+        self.add_time_btn.bind("<Enter>", lambda e: self.add_time_btn.config(bg="#228B22"))
+        self.add_time_btn.bind("<Leave>", lambda e: self.add_time_btn.config(bg="#32CD32"))
+    
+        self.add_steps_btn = tk.Button(
+            self.powerup_frame, 
+           text=f"Add Steps ({self.game_logic.add_steps_uses})", 
+            command=self.game_logic.use_add_steps, 
+            bg="#FF69B4", 
+            fg="black", 
+            font=("Arial", 12, "bold"), 
+            relief="raised"
+        )
+        self.add_steps_btn.pack(side="left", padx=5)
+        self.add_steps_btn.bind("<Enter>", lambda e: self.add_steps_btn.config(bg="#FF1493"))
+        self.add_steps_btn.bind("<Leave>", lambda e: self.add_steps_btn.config(bg="#FF69B4"))
     
     def create_game_buttons(self):
         """Create game control buttons"""
@@ -628,19 +705,27 @@ class GameUI:
     
     def update_powerup_buttons(self):
         """Update the state and appearance of powerup buttons"""
-        if hasattr(self, 'add_time_btn') and self.add_time_btn.winfo_exists():
-            self.add_time_btn.config(
-                text=f"Add Time ({self.game_logic.add_time_uses})", 
-                state="disabled" if self.paused or self.game_logic.add_time_uses == 0 else "normal",
-                bg="#A9A9A9" if self.paused or self.game_logic.add_time_uses == 0 else "#32CD32"
-            )
+        time_state = "normal" if (self.game_logic.add_time_uses > 0 and not self.paused 
+                                and not self.game_logic.found and self.timer_running) else "disabled"
         
+        steps_state = "normal" if (self.game_logic.add_steps_uses > 0 and not self.paused 
+                                and not self.game_logic.found) else "disabled"
+    
+        if hasattr(self, 'add_time_btn') and self.add_time_btn.winfo_exists():
+             self.add_time_btn.config(
+                text=f"Add Time ({self.game_logic.add_time_uses})", 
+                state=time_state,
+                bg="#32CD32" if time_state == "normal" else "#A9A9A9"
+            )
+    
         if hasattr(self, 'add_steps_btn') and self.add_steps_btn.winfo_exists():
             self.add_steps_btn.config(
                 text=f"Add Steps ({self.game_logic.add_steps_uses})", 
-                state="disabled" if self.paused or self.game_logic.add_steps_uses == 0 else "normal",
-                bg="#A9A9A9" if self.paused or self.game_logic.add_steps_uses == 0 else "#FF69B4"
+                state=steps_state,
+                bg="#FF69B4" if steps_state == "normal" else "#A9A9A9"
             )
+    
+        self.update_points_display()
     
     def set_blur_difficulty(self):
         """Set blur parameters based on difficulty level"""
