@@ -104,9 +104,9 @@ class GameLogic:
             # Adjust difficulty parameters depending on mode
             if self.story_mode:
                 # Use difficulty from current story level
-                difficulty = self.ui.current_story_difficulty
+                difficulty = self.game_ui.current_story_difficulty
             else:
-                difficulty = self.ui.difficulty.get()
+                difficulty = self.game_ui.difficulty.get()
             # Adjust difficulty
             difficulty = self.game_ui.difficulty.get()
             if difficulty == "Easy":
@@ -120,8 +120,8 @@ class GameLogic:
                 self.max_attempts = 3
         
         except Exception as e:
-            print(f"Error resetting game: {e}")
-            self.game_ui.show_message("Error loading image. Please try again with a different image.", False)
+         print(f"Error resetting game: {e}")
+         self.game_ui.show_message("Error loading image. Please try again with a different image.", False)
 
     def get_average_color(self, image, x, y, width, height):
         # Crop a region and return the average color for blending

@@ -15,7 +15,9 @@ class GameUI:
         self.gameover_sound = pygame.mixer.Sound("sounds/gameover.wav")
         self.window = window
         self.window.title("Chameleon Hunt")
-        self.window.geometry("800x600") 
+        self.window.geometry("900x765") 
+        self.window.resizable(True, True)  
+        self.window.minsize(800, 600)
         self.image_file = None
         self.difficulty = tk.StringVar(value="Medium")
         self.bg_label = None
@@ -610,10 +612,10 @@ class GameUI:
            difficulty_value = self.difficulty.get()
         if difficulty_value == "Easy":
             self.blur_level = 5
-            self.clear_radius = 150
+            self.clear_radius = 100
         elif difficulty_value == "Medium":
             self.blur_level = 8
-            self.clear_radius = 100
+            self.clear_radius = 75
         else:  # Hard
             self.blur_level = 12
             self.clear_radius = 50
