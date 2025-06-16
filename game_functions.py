@@ -414,88 +414,96 @@ class GameLogic:
             return "🧊 FREEZING! No chameleons hiding anywhere near here."
 
     def handle_click(self, event,):
-        # Process a click event: check if chameleon is found or give feedback
-        if self.click_count >= self.max_clicks:
-           found_count = sum(self.found_chameleons)
-           total_count = len(self.found_chameleons)
-           self.highlight_chameleons_red()
-        
-            # Story Mode failure handling
-           if self.story_mode:
-               self.game_ui.show_message(f"Expedition Failed! Found {found_count}/{total_count}", False)
-               if self.game_ui.sound_on:
-                   self.game_ui.gameover_sound.play()
-               self.game_ui.show_story_failure()
-           else:
-               self.game_ui.show_message(f"Game Over! Found {found_count}/{total_count}", False)
-               if self.game_ui.sound_on:
-                   self.game_ui.gameover_sound.play()
-           return
+            # Process a click event: check if chameleon is found or give feedback
+         if self.click_count >= self.max_clicks:
+              found_count = sum(self.found_chameleons)
+              total_count = len(self.found_chameleons)
+              self.highlight_chameleons_red()
 
-        self.click_count += 1
-        x, y = event.x, event.y
-        self.last_click_pos = (x, y)
-        if self.game_ui.sound_on:
-          self.game_ui.click_sound.play()
+             # Story Mode failure handling
+              if self.story_mode:
+                  self.game_ui.show_message(f"Expedition Failed! Found {found_count}/{total_count} Color Ghosts", False)
+                  if self.game_ui.sound_on:
+                      self.game_ui.gameover_sound.play()
+                  self.game_ui.show_story_failure()
+              else:
+                  self.game_ui.show_message(f"Game Over! Found {found_count}/{total_count}", False)
+                  if self.game_ui.sound_on:
+                       self.game_ui.gameover_sound.play()
+              return
 
-        # Check if click is on any chameleon
-        chameleon_found = False
-        for i, (x1, y1, x2, y2) in enumerate(self.chameleon_positions):
+         self.click_count += 1
+         x, y = event.x, event.y
+         self.last_click_pos = (x, y)
+         if self.game_ui.sound_on:
+              self.game_ui.click_sound.play()
+
+          # Check if click is on any chameleon
+         chameleon_found = False
+         for i, (x1, y1, x2, y2) in enumerate(self.chameleon_positions):
             if x1 <= x <= x2 and y1 <= y <= y2:
                 if not self.found_chameleons[i]:
-                   self.found_chameleons[i] = True
-                   self.highlight_chameleon(i)
-                   if self.game_ui.sound_on:
-                       self.game_ui.success_sound.play()
-                   chameleon_found = True
-                   # Only award points in normal mode
-                   if not self.story_mode:
-                       self.game_ui.points += 20
-                       self.game_ui.update_points_display()
-                   
+                    self.found_chameleons[i] = True
+                    self.highlight_chameleon(i)
+                    if self.game_ui.sound_on:
+                        self.game_ui.success_sound.play()
+                    chameleon_found = True
                 
                     # Check if all chameleons are found
-                   if all(self.found_chameleons):
-                     if self.game_ui.sound_on:
-                        self.game_ui.win_sound.play()
-                     self.found = True
-                     clicks_used = self.click_count
-                     efficiency = round((len(self.found_chameleons) / clicks_used) * 100)
+                    if all(self.found_chameleons):
+                        if self.game_ui.sound_on:
+                            self.game_ui.win_sound.play()
+                        self.found = True
+                        clicks_used = self.click_count
+                        efficiency = round (len(self.found_chameleons) / clicks_used) * 100
                     
-                    # Story Mode success handling
-                     if self.story_mode:
-                        self.game_ui.show_story_success()
-                     else:
-                        self.game_ui.show_message(
-                            f"You found all {len(self.found_chameleons)} chameleons! "
-                            f"Efficiency: {efficiency}%", 
-                            True
-                        )
-                   else:
-                    remaining = sum(1 for found in self.found_chameleons if not found)
-                    found_so_far = sum(self.found_chameleons)
-                    clicks_left = self.max_clicks - self.click_count
-                    self.game_ui.show_message(
-                        f"Found {found_so_far}/{len(self.found_chameleons)}. "
-                        f"{remaining} left. Clicks left: {clicks_left}", 
-                        True
-                    )
-                   return
+                        # Story Mode success handling
+                        if self.story_mode:
+                              self.game_ui.show_message(f"Color Ghost documented!", True)
+                              self.game_ui.show_story_success()
+                        else:
+                            self.game_ui.show_message(
+                                f"You found all {len(self.found_chameleons)} chameleons! "
+                                f"Efficiency: {efficiency}%", 
+                                True
+                            )
+                    else:
+                        remaining = sum(1 for found in self.found_chameleons if not found)
+                        found_so_far = sum(self.found_chameleons)
+                        clicks_left = self.max_clicks - self.click_count
+                    
+                        # Story mode feedback
+                        if self.story_mode:
+                            self.game_ui.show_message(
+                                f"Color Ghost located! {remaining} more to find. Attempts left: {clicks_left}", 
+                                True
+                            )
+                        else:
+                            self.game_ui.show_message(
+                                f"Found {found_so_far}/{len(self.found_chameleons)}. "
+                                f"{remaining} left. Clicks left: {clicks_left}", 
+                                True
+                            )
+                    return
                 else:
-                 self.game_ui.show_message("You already found this one! Keep searching.", True)
-                return
-    
-    # Handle misses
-        if not chameleon_found:
-          dist = self.calculate_distance(x, y)
-          points_earned = self.award_points(dist)
-          if points_earned > 0:
-             self.game_ui.points += points_earned
-             self.game_ui.update_points_display()
-          msg = self.get_feedback(dist)
-          clicks_left = self.max_clicks - self.click_count
-          self.game_ui.show_message(f"{msg} Clicks left: {clicks_left}", True)
-          self.show_heatmap_indicator(x, y, dist)
+                    # Story mode feedback for already found
+                    if self.story_mode:
+                        self.game_ui.show_message("You already documented this Color Ghost! Keep searching.", True)
+                    else:
+                        self.game_ui.show_message("You already found this one! Keep searching.", True)
+                    return
+
+         # Handle misses
+         if not chameleon_found:
+            dist = self.calculate_distance(x, y)
+            points_earned = self.award_points(dist)
+            if points_earned > 0 and not self.story_mode:  # Only award points in normal mode
+                self.game_ui.points += points_earned
+                self.game_ui.update_points_display()
+            msg = self.get_feedback(dist)
+            clicks_left = self.max_clicks - self.click_count
+            self.game_ui.show_message(f"{msg} Clicks left: {clicks_left}", True)
+            self.show_heatmap_indicator(x, y, dist)
         
            
 

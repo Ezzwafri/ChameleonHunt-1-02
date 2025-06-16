@@ -1310,12 +1310,12 @@ class GameUI:
         self.top_left_message.after(3000, lambda: self.top_left_message.config(text=""))
 
     def show_message(self, msg, success):
-        """Show a message in the feedback label"""
-        if hasattr(self, 'feedback'):
-           if success:
-            self.safe_update_widget(self.feedback, text=msg, fg="#008000")
-           else:
-            self.safe_update_widget(self.feedback, text=msg, fg="#FF0000")
+            """Show a message in the feedback label"""
+            if hasattr(self, 'feedback'):
+                if success:
+                    self.safe_update_widget(self.feedback, text=msg, fg="#008000")  # Green for success
+                else:
+                    self.safe_update_widget(self.feedback, text=msg, fg="#FF0000")  # Red for failure
 
     def replay(self):
         """Restart the game with the same image"""
