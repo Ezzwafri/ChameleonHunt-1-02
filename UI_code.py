@@ -333,7 +333,19 @@ class GameUI:
 
     def start_story_level(self):
         """Start the current story level"""
+        
+        # Clean up any existing widgets first
+        self.clean_up_game_widgets()
+        
+        
         level = self.story_images.get_current_level()
+        
+        # Ensure clean state
+        self.game_logic = GameLogic(self)
+        self.game_logic.story_mode = True
+        self.current_story_difficulty = level['difficulty']
+        self.image_file = level['image_data']
+        self.points = 0  # Ensure points are zero in story mode
 
         # Set story mode flag and difficulty
         if hasattr(self, 'game_logic'):
@@ -472,6 +484,10 @@ class GameUI:
     
     
     def start_game(self):
+        
+        # Clean up any existing widgets first
+        self.clean_up_game_widgets()
+    
         if not self.image_file:
           messagebox.showerror("Error", "Upload an image first!")
           return
@@ -505,16 +521,16 @@ class GameUI:
         self.timer_display = tk.Label(self.timer_frame, text="Time: 0:00", font=("Arial", 18, "bold"), bg="#ADD8E6", fg="#FF5733")
         self.timer_display.pack(padx=10)
         
-    # Add points display
-        self.points_display = tk.Label(self.timer_frame, text=f"Points: {self.points}", 
-                              font=("Arial", 14), bg="#ADD8E6", fg="#0000FF")
-        self.points_display.pack(padx=10)
-
-    # Add shop button
-        shop_btn = tk.Button(self.frame, text="$", command=self.toggle_shop_menu, 
-                    bg="#FFD700", fg="black", font=("Arial", 24, "bold"), 
-                    relief="raised", width=2, height=1)
-        shop_btn.place(x=750, y=10)
+        # Only add points and shop for normal mode
+        if not self.game_logic.story_mode:
+            self.points_display = tk.Label(self.timer_frame, text=f"Points: {self.points}", 
+                                  font=("Arial", 14), bg="#ADD8E6", fg="#0000FF")
+            self.points_display.pack(padx=10)
+        
+            shop_btn = tk.Button(self.frame, text="$", command=self.toggle_shop_menu, 
+                        bg="#FFD700", fg="black", font=("Arial", 24, "bold"), 
+                        relief="raised", width=2, height=1)
+            shop_btn.place(x=750, y=10)
     
     # Set difficulty-specific blur settings
         self.set_blur_difficulty()
@@ -581,6 +597,9 @@ class GameUI:
     
     def create_powerup_buttons(self):
         """Create powerup buttons based on available uses"""
+        if self.game_logic.story_mode:
+              return  # Skip entirely for story mode
+        
         self.top_left_message = tk.Label(self.frame, text="", 
                                         font=("Arial", 14, "bold"), 
                                         bg="#ADD8E6", fg="#800080")
@@ -685,6 +704,32 @@ class GameUI:
                self.pause_overlay.destroy()
             self.feedback.config(text="Move your mouse to reveal parts of the image! Click to guess the chameleon location!", fg="#800080")
     
+    def clean_up_game_widgets(self):
+        """Safely destroy game widgets"""
+        if hasattr(self, 'game_canvas') and self.game_canvas.winfo_exists():
+            try:
+                self.game_canvas.unbind("<Motion>")
+                self.game_canvas.unbind("<Button-1>")
+                self.game_canvas.destroy()
+            except:
+                pass
+            
+        if hasattr(self, 'powerup_frame') and self.powerup_frame.winfo_exists():
+            try:
+                self.powerup_frame.destroy()
+            except:
+                pass
+            
+        if hasattr(self, 'button_frame') and self.button_frame.winfo_exists():
+            try:
+                self.button_frame.destroy()
+            except:
+                pass
+    
+    
+    
+    
+    
     def return_to_main_menu(self):
         """Go back to the main menu"""
         # Cancel any running timer
@@ -692,6 +737,10 @@ class GameUI:
             self.window.after_cancel(self.timer_id)
             self.timer_id = None
         self.timer_running = False
+        
+        # Clean up widgets
+        self.clean_up_game_widgets()
+    
         
         # Clean up image references
         self.original_image = None
@@ -758,10 +807,19 @@ class GameUI:
     def apply_dynamic_blur(self, x, y):
         
        """Apply dynamic blurring with a clear area around cursor position"""
-       if not hasattr(self.game_logic, 'game_image_with_chameleons') or self.blurred_image is None:
-           return
+      
         
        try:
+           # Check if required components still exist
+           if not hasattr(self, 'game_canvas') or not self.game_canvas.winfo_exists():
+               return
+            
+           if not hasattr(self, 'blurred_image') or self.blurred_image is None:
+               return
+            
+           if not hasattr(self, 'image_on_canvas'):
+               return
+           
            self.current_display_image = self.blurred_image.copy()
            mask = Image.new('L', self.blurred_image.size, 0)
            draw = ImageDraw.Draw(mask)
@@ -769,16 +827,21 @@ class GameUI:
                      x+self.clear_radius, y+self.clear_radius), 
                     fill=255)
         
-           # Modified section - story mode vs normal mode:
+              # Story mode vs normal mode:
            if self.game_logic.story_mode:
                # Story Mode: Reveal image WITH chameleons
-               self.current_display_image.paste(self.game_logic.game_image_with_chameleons, (0,0), mask)
+               if hasattr(self.game_logic, 'game_image_with_chameleons'):
+                self.current_display_image.paste(self.game_logic.game_image_with_chameleons, (0,0), mask)
            else:
-               # Normal Mode: Original behavior (reveal without chameleons)
-               self.current_display_image.paste(self.original_image, (0,0), mask)
+              # Normal Mode: Original behavior
+              if hasattr(self, 'original_image') and self.original_image is not None:
+                  self.current_display_image.paste(self.original_image, (0,0), mask)
+
             
-           self.game_image = ImageTk.PhotoImage(self.current_display_image)
-           self.game_canvas.itemconfig(self.image_on_canvas, image=self.game_image)
+            # Only update if canvas still exists
+           if self.game_canvas.winfo_exists():
+               self.game_image = ImageTk.PhotoImage(self.current_display_image)
+               self.game_canvas.itemconfig(self.image_on_canvas, image=self.game_image)
         
        except Exception as e:
            print(f"Error applying dynamic blur: {e}")

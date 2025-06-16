@@ -19,8 +19,13 @@ class GameLogic:
         self.original_image = None  # User-uploaded original image
         self.game_image_with_chameleons = None  # Composite image with chameleon(s) blended in
         self.points = 0
-        self.add_time_uses = 1  # Changed from 0 to give players initial powerups
-        self.add_steps_uses = 1
+         # Initialize powerups only for non-story mode
+        if not self.story_mode:
+            self.add_time_uses = 1
+            self.add_steps_uses = 1
+        else:
+            self.add_time_uses = 0
+            self.add_steps_uses = 0
         self.difficulty_settings = {  # Settings per difficulty level
             "Easy": {
                 "size_factor": 0.15, 
@@ -443,8 +448,11 @@ class GameLogic:
                    if self.game_ui.sound_on:
                        self.game_ui.success_sound.play()
                    chameleon_found = True
-                   self.game_ui.points += 20  # Base points for finding a chameleon
-                   self.game_ui.update_points_display()
+                   # Only award points in normal mode
+                   if not self.story_mode:
+                       self.game_ui.points += 20
+                       self.game_ui.update_points_display()
+                   
                 
                     # Check if all chameleons are found
                    if all(self.found_chameleons):
