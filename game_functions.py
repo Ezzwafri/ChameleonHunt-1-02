@@ -175,16 +175,6 @@ class GameLogic:
              except Exception as powerup_error:
                  print(f"DEBUG: Powerup button update error: {powerup_error}")
     
-           # Adjust difficulty parameters
-           if difficulty == "Easy":
-            self.click_radius = 50
-            self.max_attempts = 8
-           elif difficulty == "Medium":
-            self.click_radius = 30
-            self.max_attempts = 5
-           else:  # Hard
-            self.click_radius = 15
-            self.max_attempts = 3
         
            print("DEBUG: reset_game completed successfully")
            return True
