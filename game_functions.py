@@ -62,8 +62,6 @@ class GameLogic:
         self.found = False
         self.add_time_uses = 1
         self.add_steps_uses = 1
-        self.chameleon_x = 0
-        self.chameleon_y = 0
         self.click_radius = 20
         self.last_click_pos = None  # Track the last click position for heatmap visualization
         self.heatmap_indicators = []  # Initialize for tracking indicators
@@ -374,10 +372,7 @@ class GameLogic:
             blended = self.blend_chameleon(resized, bg_color, settings["opacity"], settings["color_match"])
             img.paste(blended, (x, y), blended)
             
-            # Set a reference point for the first chameleon (for timer expiration)
-            if not hasattr(self, 'chameleon_x') or self.chameleon_x == 0:
-                self.chameleon_x = x + width/2
-                self.chameleon_y = y + height/2
+            
                 
         return img
 
